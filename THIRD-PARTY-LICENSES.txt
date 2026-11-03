@@ -1,0 +1,30 @@
+Voice Recorder Pro bundles the following third-party software. Full licence texts are copied into the
+"licenses" folder of the built program by packaging\collect_licenses.py.
+
+Component                 Licence                         Source
+------------------------  ------------------------------  ------------------------------------------------
+Qt 6 / PySide6, shiboken6 LGPL-3.0 (used as shared libs)  https://www.qt.io/  https://code.qt.io/
+NumPy                     BSD-3-Clause                    https://numpy.org/
+soundfile                 BSD-3-Clause                    https://github.com/bastibe/python-soundfile
+  libsndfile              LGPL-2.1                        https://github.com/libsndfile/libsndfile
+  mpg123, LAME, libFLAC,  LGPL-2.1 / BSD (bundled in      (see libsndfile build)
+  libogg, libvorbis, opus the libsndfile DLL)
+sounddevice               MIT                             https://github.com/spatialaudio/python-sounddevice
+PyAudioWPatch             Apache-2.0 (PortAudio: MIT)     https://github.com/s0d3s/PyAudioWPatch
+  PortAudio               MIT                             http://www.portaudio.com/
+lameenc (LAME encoder)    LGPL-3.0-or-later               https://github.com/chrisstaite/lameenc
+soxr (python-soxr)        LGPL-2.1-or-later               https://github.com/dofuuz/python-soxr
+pyserial                  BSD-3-Clause                    https://github.com/pyserial/pyserial
+hidapi (cython-hidapi)    BSD-style (chosen option)       https://github.com/trezor/cython-hidapi
+cffi, pycparser           MIT-0 / BSD-3-Clause            https://cffi.readthedocs.io/
+typing_extensions         PSF-2.0                         https://github.com/python/typing_extensions
+Python runtime            PSF License                     https://www.python.org/
+PyInstaller bootloader    GPL-2.0 with bootloader         https://pyinstaller.org/
+                          exception (any licence allowed
+                          for the built program; only in
+                          the optional .exe build)
+
+The LGPL libraries are shipped as separate DLL/PYD files in the program folder and can be replaced by the
+user with compatible versions. Their source code is available at the addresses above.
+
+MP3: the MP3 patents have expired; no licence is needed for MP3 encoding or decoding.

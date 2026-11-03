@@ -1,0 +1,19 @@
+[project]
+name = "voice-recorder-pro"
+version = "1.0.2"
+description = "Voice-activated sound recorder for Windows 11"
+requires-python = ">=3.11"
+dependencies = [
+    "PySide6-Essentials>=6.8,<7", "numpy>=1.26", "soundfile>=0.12.1", "sounddevice>=0.4.6",
+    "lameenc>=1.7", "soxr>=0.3.7", "pyserial>=3.5", "hidapi>=0.14",
+    "PyAudioWPatch>=0.2.12.9; sys_platform == 'win32'",
+]
+
+[project.scripts]
+vrp = "vrp.app:main"
+
+[project.gui-scripts]
+VoiceRecorderPro = "vrp.app:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

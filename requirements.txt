@@ -1,0 +1,11 @@
+# Voice Recorder Pro - runtime dependencies (Windows 11, Python 3.12 or 3.13, 64-bit)
+# Ranges allow security updates; requirements-lock.txt holds the exact tested versions.
+PySide6-Essentials>=6.8,<7      # GUI, tray, timers, local control channel (LGPL-3.0)
+numpy>=1.26                     # sample buffers, levels, Vox
+soundfile>=0.12.1               # WAV/FLAC/MP3 reading + FLAC writing (bundles libsndfile with MP3 support)
+sounddevice>=0.4.6              # PortAudio: devices, MME/DirectSound/WASAPI/WDM-KS
+lameenc>=1.7                    # MP3 encoding (LAME)
+soxr>=0.3.7                     # high-quality resampling when a device lacks the chosen rate
+pyserial>=3.5                   # serial-port control lines (external devices)
+hidapi>=0.14                    # USB HID foot pedals (external devices)
+PyAudioWPatch>=0.2.12.9; sys_platform == "win32"   # computer audio: WASAPI loopback (Apache-2.0)

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice Recorder Pro Help</title>
+<style>
+  :root { --bg:#ffffff; --fg:#1d2330; --muted:#5b6476; --line:#e2e6ee; --accent:#1f3b73; --code:#f3f5f9; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16191f; --fg:#e6e9ef; --muted:#9aa3b5; --line:#2b313c; --accent:#8fb0ff; --code:#20252e; }
+  }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.55 "Segoe UI", system-ui, sans-serif; }
+  main { max-width:860px; margin:0 auto; padding:24px 20px 60px; }
+  h1 { font-size:26px; margin:8px 0 4px; } h2 { font-size:19px; margin-top:34px; border-bottom:1px solid var(--line); padding-bottom:4px; color:var(--accent); }
+  h3 { font-size:16px; margin-top:20px; }
+  p.lead { color:var(--muted); margin-top:0; }
+  table { border-collapse:collapse; width:100%; margin:10px 0; font-size:14px; }
+  th, td { text-align:left; border-bottom:1px solid var(--line); padding:6px 8px; vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+  code, kbd { background:var(--code); border-radius:4px; padding:1px 5px; font-family:Consolas, monospace; font-size:13px; }
+  pre { background:var(--code); padding:10px 12px; border-radius:6px; overflow-x:auto; font-size:13px; }
+  nav a { margin-right:12px; white-space:nowrap; } a { color:var(--accent); }
+  .note { border-left:3px solid var(--accent); padding:4px 12px; color:var(--muted); }
+</style>
+</head>
+<body><main>
+<h1>Voice Recorder Pro 1.0</h1>
+<p class="lead">A voice-activated sound recorder for Windows 11: it records only while someone is speaking, writes straight to disk, and lets you play, mark and cut recordings without another editor.</p>
+<nav><a href="#start">Getting started</a><a href="#window">Main window</a><a href="#vox">Vox</a><a href="#files">Files</a><a href="#play">Playback</a><a href="#edit">Editing</a><a href="#hotkeys">Hot-keys</a><a href="#external">Pedals &amp; devices</a><a href="#schedule">Schedules</a><a href="#cli">Command line</a><a href="#trouble">Troubleshooting</a></nav>
+
+<h2 id="start">Getting started</h2>
+<ol>
+<li>Press <b>Record</b> (the red button, or <kbd>R</kbd>). With Vox on, the recorder waits for sound (title shows <code>[VOX]</code>) and records each time you speak (<code>[REC]</code>).</li>
+<li>Press <b>Stop</b> (<kbd>S</kbd>). The file is saved in <code>Documents\VRP Recordings</code> with a name like <code>Oct02_1.mp3</code>.</li>
+<li>Press <b>Play</b> (<kbd>Space</kbd>) to listen. Drag the Position slider to move around.</li>
+</ol>
+<p>Closing the window keeps the app running in the notification area (tray). Use <b>File &gt; Exit</b> to quit. Recording continues when the window is hidden or the screen is locked, and Windows will not go to sleep while recording.</p>
+<p class="note">Recording phone calls, meetings or conversations may require everyone's consent where you live.</p>
+
+<h2 id="window">The main window</h2>
+<table>
+<tr><th>Element</th><th>What it shows or does</th></tr>
+<tr><td>Title bar</td><td>File name; <code>[REC]</code> while recording, <code>[VOX]</code> while waiting for sound, <code>[PAUSED]</code>.</td></tr>
+<tr><td>Format (top right)</td><td>Output format of the file. Click to change the format.</td></tr>
+<tr><td>Vox slider and number</td><td>The Vox threshold (0–100). Sound louder than this starts recording. Hover for the dBFS value.</td></tr>
+<tr><td>Vox</td><td>Turns voice activation on or off (<kbd>Alt+V</kbd>). Struck through when off.</td></tr>
+<tr><td>Mic and Computer tick boxes</td><td>What to record: the microphone, computer audio (whatever plays through your default speakers or headphones — calls, videos, music), or both mixed into one file. Tick or untick at any time, even while recording; the change applies from that moment. With both unticked during a recording, silence is recorded. Also in <b>Control</b>, the tray menu, <b>Options &gt; Recording &gt; Record from</b>, and as hot-key actions.</td></tr>
+<tr><td>Level meters and number</td><td>Left bar: microphone (the playback level while playing). Right bar: computer audio. The number is the level of what is being recorded. The dashed line is the Vox threshold; the top segment turns red when a source clips.</td></tr>
+<tr><td>Segment</td><td>Current segment and total, e.g. <code>3 of 3</code>.</td></tr>
+<tr><td>Sample</td><td>Sample rate, bit depth (WAV/FLAC) and MO/ST.</td></tr>
+<tr><td>Size</td><td>File size and duration.</td></tr>
+<tr><td>Disk line</td><td>Free space on the recordings drive (amber when low, red when recording must stop). Shows the selection while you have one. A ⚠ means some audio blocks were lost because the PC was too busy.</td></tr>
+<tr><td>Position</td><td>Click or drag to move; <kbd>Shift</kbd>-drag to select; ticks mark segment boundaries.</td></tr>
+<tr><td>Transport</td><td>Record, Play, Rewind, Stop, Fast Forward. Click Rewind/FF to jump 5 s; hold to scan (4×, then 10× after 3 s).</td></tr>
+</table>
+
+<h2 id="vox">Voice activation (Vox)</h2>
+<p>When the input rises above the threshold, a new <b>segment</b> starts. It includes a short <b>pre-roll</b> (audio from just before the sound) and continues for the <b>hang time</b> after the last sound, so short pauses inside speech do not split a segment. Bursts shorter than the <b>minimum segment</b> (clicks, bumps) are thrown away.</p>
+<table>
+<tr><th>Setting</th><th>Default</th><th>Effect</th></tr>
+<tr><td>Threshold</td><td>4</td><td>Higher = only louder sound triggers recording. Use <b>Options &gt; Vox &gt; Calibrate</b> to measure your room.</td></tr>
+<tr><td>Attack time</td><td>20 ms</td><td>How long sound must last before recording starts.</td></tr>
+<tr><td>Hang time</td><td>2.0 s</td><td>How much silence ends a segment.</td></tr>
+<tr><td>Pre-roll</td><td>300 ms</td><td>Audio kept from before the trigger, so first syllables are not cut.</td></tr>
+<tr><td>Minimum segment</td><td>0.5 s</td><td>Shorter sound bursts are dropped.</td></tr>
+<tr><td>Each activation starts</td><td>A new segment</td><td>Or a new file for every activation.</td></tr>
+</table>
+<p><b>Options &gt; Disable Vox</b> always records continuously; <b>Hide Vox</b> removes the Vox controls from the window.</p>
+
+<h2 id="files">Files, names and segments</h2>
+<p>Recordings are named from a pattern (default <code>{Mon}{dd}_{n}</code>). Tokens: <code>{yyyy} {yy} {mm} {Mon} {Month} {dd} {HH} {MM} {SS} {n} {n3} {host} {device} {tag}</code>. A <code>/</code> creates subfolders, e.g. <code>{yyyy}/{mm}/{Mon}{dd}_{n}</code>. Existing files are never overwritten.</p>
+<p>Pressing Record with a file open <b>appends a new segment</b> to it (when the format matches); change this in <b>Options &gt; Recording</b>. Segment boundaries and time stamps are stored inside the file: MP3 chapters (ID3 CHAP), WAV cue points with labels, or FLAC CHAPTER tags, so other programs can see them too.</p>
+<p>Automatic new files: by size, after a duration, at midnight or every N hours, with no audio lost between files. While recording, data reaches the disk every second; after a crash or power cut the app offers to <b>recover</b> the file at the next start.</p>
+<table>
+<tr><th>Format</th><th>Good for</th><th>Size (approx.)</th></tr>
+<tr><td>MP3 16 kHz mono 32 kbit/s (default)</td><td>Speech, dictation</td><td>0.24 MB per minute</td></tr>
+<tr><td>WAV 16-bit 44.1 kHz stereo</td><td>Highest compatibility, editing</td><td>10 MB per minute</td></tr>
+<tr><td>WAV µ-law / A-law 8 kHz</td><td>Telephone audio</td><td>0.5 MB per minute</td></tr>
+<tr><td>FLAC</td><td>Lossless archive</td><td>about 60% of WAV</td></tr>
+</table>
+
+<h2 id="play">Playback and transcription</h2>
+<ul>
+<li><b>Auto-backspace</b>: every time playback resumes after a pause it steps back 2 s (Options &gt; Playback).</li>
+<li><b>Speed</b>: 50–200% with the pitch kept (Control &gt; Playback Speed).</li>
+<li><kbd>PgUp</kbd>/<kbd>PgDn</kbd> jump between segments; <kbd>Home</kbd>/<kbd>End</kbd> to the start/end.</li>
+<li>With a selection, Play plays only the selection; <b>Edit &gt; Loop Selection</b> repeats it.</li>
+</ul>
+
+<h2 id="edit">Editing</h2>
+<p>Set an <b>In</b> mark (<kbd>[</kbd>) and an <b>Out</b> mark (<kbd>]</kbd>) while listening, or <kbd>Shift</kbd>-drag on the Position slider. Then:</p>
+<table>
+<tr><th>Command</th><th>Keys</th><th>Result</th></tr>
+<tr><td>Extract Selection to File</td><td><kbd>Ctrl+E</kbd></td><td>New file <code>name_x1.mp3</code>; original unchanged.</td></tr>
+<tr><td>Delete Selection</td><td><kbd>Del</kbd></td><td>Removes the selection (Undo with <kbd>Ctrl+Z</kbd>).</td></tr>
+<tr><td>Crop to Selection</td><td><kbd>Ctrl+Shift+K</kbd></td><td>Keeps only the selection.</td></tr>
+<tr><td>Split at Position</td><td><kbd>Ctrl+T</kbd></td><td>Two files <code>_part1</code> and <code>_part2</code>.</td></tr>
+<tr><td>Join Files</td><td><kbd>Ctrl+J</kbd></td><td>Joins files in the order you choose.</td></tr>
+<tr><td>Insert Segment Boundary</td><td><kbd>M</kbd></td><td>Starts a new segment at the position.</td></tr>
+</table>
+<p>WAV and MP3 edits copy the original data directly (no re-encoding), so they are very fast and lose no quality. MP3 marks snap to MP3 frames (about 36 ms at 16 kHz). Edits never change the original until they have finished successfully.</p>
+
+<h2 id="hotkeys">Global hot-keys</h2>
+<p>Hot-keys work while you type in another program. Defaults:</p>
+<table>
+<tr><th>Action</th><th>Keys</th></tr>
+<tr><td>Record / pause</td><td><kbd>Ctrl+Alt+R</kbd></td></tr><tr><td>Stop</td><td><kbd>Ctrl+Alt+S</kbd></td></tr>
+<tr><td>Play / pause</td><td><kbd>Ctrl+Alt+P</kbd></td></tr><tr><td>Rewind / Fast forward (hold to scan)</td><td><kbd>Ctrl+Alt+B</kbd> / <kbd>Ctrl+Alt+F</kbd></td></tr>
+<tr><td>Vox on/off</td><td><kbd>Ctrl+Alt+V</kbd></td></tr><tr><td>In / Out mark</td><td><kbd>Ctrl+Alt+I</kbd> / <kbd>Ctrl+Alt+O</kbd></td></tr>
+<tr><td>Insert segment boundary</td><td><kbd>Ctrl+Alt+M</kbd></td></tr><tr><td>Show / hide window</td><td><kbd>Ctrl+Alt+H</kbd></td></tr>
+</table>
+<p>Change them in <b>Options &gt; Hot-keys</b>. A key shown in red is already taken by another program. <b>Push-to-talk</b> records only while its key is held. On many European keyboards <kbd>Ctrl+Alt</kbd>+letter is AltGr; choose <kbd>Ctrl+Shift</kbd> or <kbd>Win</kbd> combinations there. A short beep confirms start/stop when the window is hidden.</p>
+
+<h2 id="external">Foot pedals and external devices</h2>
+<p>Options &gt; External Devices replaces the old PC game port:</p>
+<ul>
+<li><b>Game controllers</b> (USB gamepads, joysticks, button boxes): any button, axis or hat.</li>
+<li><b>USB foot pedals</b> (HID): a built-in profile covers the VEC Infinity pedal; for others, select a mapping row, click <b>Learn</b> and press the pedal.</li>
+<li><b>Serial ports</b>: CTS, DSR, DCD and RI as inputs (e.g. a radio's squelch output with <i>Record while active</i>); DTR/RTS as outputs that follow Recording, Armed or Playing (e.g. an "on air" lamp). A switch between DTR and an input line registers as active.</li>
+</ul>
+<p>Pedals that type keys can be bound in Hot-keys instead. Typical transcription setup: left = Rewind (hold), middle = Play while held, right = Fast Forward (hold).</p>
+
+<h2 id="schedule">Timed and scheduled recording</h2>
+<p><b>Control &gt; Timed Recording</b> records for a set time from now. <b>Control &gt; Schedule</b> starts and stops recordings by itself (once, daily, weekdays, weekly or monthly), each with its own Vox, device, format and file names. Schedules run while the app is open or in the tray; if the PC was asleep, a recording starts late when no more than 5 minutes have passed.</p>
+<p>Recordings can also stop by themselves after a period of silence or at a clock time (Options &gt; Recording).</p>
+
+<h2 id="cli">Command line</h2>
+<p>Use <code>vrp.exe</code> (next to <code>VoiceRecorderPro.exe</code>) from a Command Prompt, a script or a desktop shortcut:</p>
+<pre>vrp record --duration 0:30:00 --format wav     start recording (starts the app if needed)
+vrp pause | vrp resume | vrp stop
+vrp status --json
+vrp play "C:\Recordings\Oct02_1.mp3" --from 1:20
+vrp extract Oct02_1.mp3 --from 1:00 --to 2:30 --out clip.mp3
+vrp split Oct02_1.mp3 --at 5:00
+vrp join a.mp3 b.mp3 --out joined.mp3
+vrp convert Oct02_1.wav --format flac
+vrp devices
+vrp schedule add --name Morning --start 2026-10-21T09:00 --duration 0:30:00 --repeat weekdays
+vrp record --headless                           record without any window; Ctrl+C saves and stops</pre>
+<p>Exit codes: 0 ok, 1 usage error, 2 device error, 3 file error, 4 not running, 5 busy. <b>Options &gt; Recording &gt; Run after each file is finished</b> runs your own command with <code>{path}</code>, <code>{duration_s}</code>, <code>{segments}</code> and <code>{start_iso}</code>.</p>
+
+<h2 id="trouble">Troubleshooting</h2>
+<table>
+<tr><th>Problem</th><th>What to do</th></tr>
+<tr><td>"Windows did not allow access to the microphone"</td><td>Settings &gt; Privacy &amp; security &gt; Microphone: turn on <i>Let desktop apps access your microphone</i>.</td></tr>
+<tr><td>Meter does not move / "No signal"</td><td>Check the device in Options &gt; Sound Devices and use <b>Test</b>. Check the microphone is not muted in Windows Sound settings.</td></tr>
+<tr><td>Computer audio meter stays empty</td><td>Nothing is playing, or it plays on a device that is not the Windows default output (Settings &gt; System &gt; Sound &gt; Output). Recording follows the default device within about 2 seconds of a change. Computer audio is too loud or quiet next to your voice: <b>Options &gt; Recording &gt; Computer audio level</b>.</td></tr>
+<tr><td>Vox triggers on background noise</td><td>Raise the threshold or use Calibrate; enable the 80 Hz high-pass filter for rumble.</td></tr>
+<tr><td>First words are cut off</td><td>Increase Pre-roll, or lower the threshold.</td></tr>
+<tr><td>⚠ on the disk line</td><td>The PC was too busy and some audio was lost. Choose a larger block size and "High" latency in Options &gt; Advanced.</td></tr>
+<tr><td>A hot-key shows "In use by another application"</td><td>Pick a different combination.</td></tr>
+<tr><td>Something else</td><td>Help &gt; Open Log Folder and look at <code>vrp.log</code>.</td></tr>
+</table>
+<p>Settings live in <code>%APPDATA%\VoiceRecorderPro\settings.json</code> (Options has Export/Import); logs in <code>%LOCALAPPDATA%\VoiceRecorderPro\Logs</code>. Put an empty file called <code>portable.flag</code> next to the program to keep settings and logs beside it instead.</p>
+</main></body>
+</html>

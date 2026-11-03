@@ -1,0 +1,10 @@
+"""Voice Recorder Pro (VRP) - a voice-activated sound recorder for Windows 11."""
+
+APP_NAME = "Voice Recorder Pro"
+APP_SHORT = "VRP"
+APP_ID = "VoiceRecorderPro"
+ORG_NAME = "VRP"
+__version__ = "1.0.2"
+BUILD_DATE = "2026-11-01"
+PUBLISHER = "Neo Time Consulting"
+WEBSITE = "https://software.4u.hk"
