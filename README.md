@@ -9,7 +9,7 @@
   <a href="https://buymeacoffee.com/flyingturtle"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black" alt="Buy me a coffee"></a>
 </p>
 
-A voice-activated recorder for Windows 11 that captures your microphone **and** your computer's sound together, so you can record Zoom and Microsoft Teams meetings for minutes. Portable: unzip and run, no installation and no admin rights.
+A voice-activated recorder for Windows 11 that captures your microphone **and** your computer's sound, so you can record Zoom and Microsoft Teams meetings for minutes. Keep both sides mixed in one track, or on separate left and right channels so transcription software can tell your voice from the other participants. Portable: unzip and run, no installation and no admin rights.
 
 **[Download the latest version](https://github.com/hylhk23/VoiceRecorderPro/releases/latest)** · Windows 11, 64-bit · Free
 
@@ -24,7 +24,7 @@ Voice Recorder Pro sits quietly in the system tray and records the conversations
 | | |
 | --- | --- |
 | **Mic + computer audio in one file** | Both sides of a Zoom, Teams or Webex call, mixed into a single recording |
-| **Or on separate channels** | Your voice on the left, the other participants on the right, so transcription software can tell the two sides apart (new in 1.0.3) |
+| **Or on separate channels** | Your voice on the left, the other participants on the right, so transcription software can tell the two sides apart |
 | **Voice-activated** | Records only when sound is above your threshold, so long silences are not recorded |
 | **Portable** | Unzip and run `run.bat`. No installer, no admin rights |
 | **Small, transcription-ready files** | MP3 at 16 kHz mono, about 14 MB per hour |
@@ -37,12 +37,32 @@ Voice Recorder Pro sits quietly in the system tray and records the conversations
 
 ---
 
+## What's new in 1.0.3
+
+**Separate channels for meetings.** Choose **Options > Format > Channels > Separate: microphone left, computer audio right**. Your voice goes on the left channel and the other participants on the right, in one stereo file. Speech-to-text software can then transcribe each side on its own, which makes it easier to see who said what.
+
+<p align="center">
+  <img src="docs/images/options-format-separate.png" alt="Options dialog, Format tab: Channels set to Separate: microphone left, computer audio right, MP3 at 64 kbit/s, with a note to use a headset" width="700">
+</p>
+
+- Use a headset. With speakers, the call is also picked up by your microphone and appears on both channels.
+- For MP3, the bitrate is raised to 64 kbit/s when you choose Separate, because the two channels share it. You can change it.
+- The main window shows **L/R** in the Sample field, and the file records which channel is which in its tags.
+- Unticking Mic or Computer while recording leaves that side silent; the file stays stereo.
+- Command line: `vrp record --layout split`.
+- Mixed recording stays the default. Nothing changes unless you choose Separate.
+- Fixed: recovering a FLAC recording after a crash or power cut could lose the last few seconds. It now keeps everything that can be read.
+
+Full list of changes: [release notes](https://github.com/hylhk23/VoiceRecorderPro/releases/tag/v1.0.3).
+
+---
+
 ## Why it suits the office
 
 ### Records both sides of a Zoom or Teams meeting
 Voice Recorder Pro records the **microphone** (your voice) and **computer audio** (everything played through your speakers or headset: the other participants in Zoom, Teams, Webex or a phone app) into one file. Each source has its own level meter and tick box, and you can switch either on or off at any time, even mid-recording. The result is a single recording of the whole conversation, ready for writing minutes.
 
-New in 1.0.3: choose **Options > Format > Channels > Separate** to keep the two apart in a stereo file, with your microphone on the left and the computer audio on the right. Speech-to-text software can then transcribe each side on its own, which makes it easier to see who said what. Use a headset, so the call is not also picked up by your microphone.
+To keep the two apart, choose **Options > Format > Channels > Separate**. You get a stereo file, with your microphone on the left and the computer audio on the right. Speech-to-text software can then transcribe each side on its own, which makes it easier to see who said what. Use a headset, so the call is not also picked up by your microphone.
 
 ### Records only when someone is speaking
 Voice activation (Vox) starts recording when sound rises above a threshold you set and pauses when the room goes quiet (after a short hang time, 2 seconds by default, so pauses between sentences are kept). Long silences never reach the file, so:
