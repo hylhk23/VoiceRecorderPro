@@ -5,7 +5,7 @@ import os
 
 from vrp import paths
 from vrp.core import flacmeta, id3, wavfile
-from vrp.core.model import FileModel, Segment
+from vrp.core.model import WAV_ROLES_KEY, FileModel, Segment
 
 
 class UnsupportedFile(Exception):
@@ -99,4 +99,5 @@ def tags_from_model(m: FileModel) -> dict:
         "date": t.get("VRP_START") or t.get("ICRD") or t.get("TDRC") or t.get("DATE", ""),
         "device": t.get("VRP_DEVICE") or t.get("ISRC", ""),
         "format": t.get("VRP_FORMAT", ""),
+        "channels": (t.get("VRP_CHANNELS") or t.get(WAV_ROLES_KEY, "")) if m.layout == "split" else "",
     }

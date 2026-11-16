@@ -49,8 +49,8 @@ The published portable package does **not** use this route: it runs the official
 | --- | --- |
 | `dist\VoiceRecorderPro\VoiceRecorderPro.exe` | The program (copy the whole folder anywhere) |
 | `dist\VoiceRecorderPro\vrp.exe` | Command-line companion (same folder) |
-| `Output\VoiceRecorderPro-1.0.2-win64.zip` | The program folder, zipped for sharing |
-| `Output\VoiceRecorderPro-Setup-1.0.2.exe` | Installer (when Inno Setup 6 is installed) |
+| `Output\VoiceRecorderPro-1.0.3-win64.zip` | The program folder, zipped for sharing |
+| `Output\VoiceRecorderPro-Setup-1.0.3.exe` | Installer (when Inno Setup 6 is installed) |
 | `Output\SHA256SUMS.txt` | SHA-256 checksums of the outputs |
 
 The installer installs per user without admin rights (all-users is offered), adds Start-menu entries, can start the app at sign-in, and on uninstall keeps your recordings and asks before removing settings.

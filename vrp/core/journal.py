@@ -190,24 +190,19 @@ def recover(p: Pending) -> tuple[bool, str]:
 
 def _recover_flac(path: str, fmt: FormatSpec, segments: list[Segment], tags: dict) -> float:
     """Decode what is readable and re-encode it into a clean FLAC file."""
-    import numpy as np
     import soundfile as sf
 
     lp = paths.longpath(path)
     tmp = lp + ".vrp-recover.flac"
-    frames = 0
-    with sf.SoundFile(lp) as src, sf.SoundFile(tmp, "w", samplerate=src.samplerate, channels=src.channels,
-                                               subtype=src.subtype or "PCM_16", format="FLAC") as dst:
-        while True:
-            try:
-                block = src.read(65536, dtype="float32", always_2d=True)
-            except Exception:
-                break
-            if block.size == 0:
-                break
-            dst.write(np.clip(block, -1, 1))
-            frames += block.shape[0]
-        rate = src.samplerate
+    with sf.SoundFile(lp) as src:
+        rate, channels, subtype = src.samplerate, src.channels, src.subtype or "PCM_16"
+    try:
+        with sf.SoundFile(tmp, "w", samplerate=rate, channels=channels, subtype=subtype, format="FLAC") as dst:
+            frames = _salvage_flac(lp, dst)
+    except Exception:
+        if os.path.exists(tmp):
+            os.remove(tmp)                      # the original file stays untouched
+        raise
     if frames == 0:
         os.remove(tmp)
         raise ValueError("no readable audio")
@@ -215,3 +210,34 @@ def _recover_flac(path: str, fmt: FormatSpec, segments: list[Segment], tags: dic
     segments = [s for s in segments if s.start <= frames] or [Segment(0)]
     metadata.flac_write_tags(path, segments, rate, tags)
     return frames / rate
+
+
+def _salvage_flac(lp: str, dst) -> int:
+    """Copy every readable frame of a FLAC file cut short by a crash into dst; returns the frame count.
+
+    The encoder writes the total length only when the file is closed, so after a crash the length is
+    unknown and the last FLAC frame is incomplete. A read that runs into that cut-off end fails as a
+    whole, so it is retried in smaller blocks, down to 64 frames. Seeking in such a file can fail as
+    well, so each retry opens the file again and reads past the frames already copied (they decoded
+    once, so they decode again).
+    """
+    import numpy as np
+    import soundfile as sf
+
+    frames, block = 0, 65536
+    while block >= 64:
+        with sf.SoundFile(lp) as src:
+            left = frames
+            while left > 0:
+                left -= src.read(min(left, 65536), dtype="float32", always_2d=True).shape[0]
+            while True:
+                try:
+                    x = src.read(block, dtype="float32", always_2d=True)
+                except Exception:
+                    break                       # ran into the cut-off end: retry in smaller blocks
+                if x.shape[0] == 0:
+                    return frames               # read to the end cleanly
+                dst.write(np.clip(x, -1, 1))
+                frames += x.shape[0]
+        block //= 8
+    return frames

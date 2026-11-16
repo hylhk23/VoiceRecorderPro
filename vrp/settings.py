@@ -123,6 +123,7 @@ SCHEMA: dict[str, Spec] = {
     "fmt.codec": S("mp3", choices=["mp3", "wav", "flac"]),
     "fmt.rate": S(16000, int, 8000, 96000),
     "fmt.channels": S(1, int, 1, 2),
+    "fmt.layout": S("mix", choices=["mix", "split"]),          # 1.0.3: split = mic left, computer right
     "fmt.wav_subtype": S("PCM_16", choices=["PCM_U8", "PCM_16", "PCM_24", "FLOAT", "ULAW", "ALAW"]),
     "fmt.flac_bits": S(16, int, 16, 24),
     "fmt.flac_level": S(5, int, 0, 8),

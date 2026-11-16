@@ -29,7 +29,7 @@ def env(tmp_path, isolated_config):
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="uses SIGKILL")
-@pytest.mark.parametrize("codec", ["wav", "mp3"])
+@pytest.mark.parametrize("codec", ["wav", "mp3", "flac"])   # flac: regression test for the 1.0.3 recovery fix
 def test_tc06_kill_and_recover(tmp_path, env, codec):                    # TC-06, NFR-007
     p = subprocess.Popen([sys.executable, "-m", "vrp", "record", "--headless", "--fake-audio", "--format", codec],
                          cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

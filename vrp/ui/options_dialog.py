@@ -180,6 +180,10 @@ class OptionsDialog(QDialog):
         note.setWordWrap(True)
         note.setStyleSheet("color: palette(mid);")
         sf.addRow(note)
+        sep = QLabel("To keep your microphone and the computer audio on separate channels (left and right), "
+                     "choose Format > Channels > Separate.")
+        sep.setWordWrap(True)
+        sf.addRow(sep)
         if not ok:
             self.src_combo.model().item(0).setEnabled(False)
             self.src_combo.model().item(2).setEnabled(False)
@@ -260,7 +264,7 @@ class OptionsDialog(QDialog):
 
     def _format(self) -> None:
         f = self._page("Format")
-        self.fmt_form = FormatForm()
+        self.fmt_form = FormatForm(allow_split=True)
         f.addRow(self.fmt_form)
         f.addRow(QLabel("A format change applies to the next new file; appending needs a matching format."))
         self._bind("__fmt__", self.fmt_form.spec, self.fmt_form.set_spec)
@@ -975,6 +979,7 @@ class OptionsDialog(QDialog):
             if key == "__fmt__":
                 spec = getter()
                 vals.update({"fmt.codec": spec.codec, "fmt.rate": spec.rate, "fmt.channels": spec.channels,
+                             "fmt.layout": spec.layout,
                              "fmt.wav_subtype": spec.wav_subtype, "fmt.flac_bits": spec.flac_bits,
                              "fmt.flac_level": spec.flac_level, "fmt.mp3.mode": spec.mp3_mode,
                              "fmt.mp3.kbps": spec.mp3_kbps, "fmt.mp3.vbr_q": spec.mp3_vbr_q})

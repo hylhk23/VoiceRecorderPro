@@ -44,7 +44,7 @@
 <tr><td>Format (top right)</td><td>Output format of the file. Click to change the format.</td></tr>
 <tr><td>Vox slider and number</td><td>The Vox threshold (0–100). Sound louder than this starts recording. Hover for the dBFS value.</td></tr>
 <tr><td>Vox</td><td>Turns voice activation on or off (<kbd>Alt+V</kbd>). Struck through when off.</td></tr>
-<tr><td>Mic and Computer tick boxes</td><td>What to record: the microphone, computer audio (whatever plays through your default speakers or headphones — calls, videos, music), or both mixed into one file. Tick or untick at any time, even while recording; the change applies from that moment. With both unticked during a recording, silence is recorded. Also in <b>Control</b>, the tray menu, <b>Options &gt; Recording &gt; Record from</b>, and as hot-key actions.</td></tr>
+<tr><td>Mic and Computer tick boxes</td><td>What to record: the microphone, computer audio (whatever plays through your default speakers or headphones — calls, videos, music), or both mixed into one file. Tick or untick at any time, even while recording; the change applies from that moment. With both unticked during a recording, silence is recorded. Also in <b>Control</b>, the tray menu, <b>Options &gt; Recording &gt; Record from</b>, and as hot-key actions. To keep the two on separate channels instead of mixing them, see <a href="#separate">Separate channels</a>.</td></tr>
 <tr><td>Level meters and number</td><td>Left bar: microphone (the playback level while playing). Right bar: computer audio. The number is the level of what is being recorded. The dashed line is the Vox threshold; the top segment turns red when a source clips.</td></tr>
 <tr><td>Segment</td><td>Current segment and total, e.g. <code>3 of 3</code>.</td></tr>
 <tr><td>Sample</td><td>Sample rate, bit depth (WAV/FLAC) and MO/ST.</td></tr>
@@ -77,7 +77,20 @@
 <tr><td>WAV 16-bit 44.1 kHz stereo</td><td>Highest compatibility, editing</td><td>10 MB per minute</td></tr>
 <tr><td>WAV µ-law / A-law 8 kHz</td><td>Telephone audio</td><td>0.5 MB per minute</td></tr>
 <tr><td>FLAC</td><td>Lossless archive</td><td>about 60% of WAV</td></tr>
+<tr><td>MP3 16 kHz separate channels 64 kbit/s</td><td>Meetings and calls for transcription: your voice and the other side kept apart</td><td>0.48 MB per minute</td></tr>
 </table>
+
+<h3 id="separate">Separate channels: microphone left, computer audio right</h3>
+<p>Normally the microphone and computer audio are mixed into one track. Choose <b>Options &gt; Format &gt; Channels &gt; Separate: microphone left, computer audio right</b> to record a stereo file with your voice alone on the left channel and the computer audio (the other people in a call) alone on the right. Transcription software can then transcribe each side on its own and tell you apart from the others.</p>
+<ul>
+<li>Use a headset. With speakers, the call is also picked up by your microphone and appears in both channels.</li>
+<li>Mic and Computer still work as before. An unticked source records silence on its channel; the file stays stereo.</li>
+<li>Voice activation starts when either side is speaking. The level meters show each side; the number shows the louder one.</li>
+<li>For MP3, the bitrate is raised to 64 kbit/s when you choose Separate, because the two channels share it. You can change it; below 64 kbit/s speech loses clarity. FLAC keeps both channels exactly.</li>
+<li>The file says which channel is which (in its tags), so other programs can read it. The Sample field shows <code>L/R</code> for such a file.</li>
+<li>Recording appends to an open file only if it uses the same channel setting. Join refuses to combine separate-channel files with mixed ones. Saving a copy as mono mixes the two sides together.</li>
+<li>Playback plays your voice in the left ear and the other side in the right.</li>
+</ul>
 
 <h2 id="play">Playback and transcription</h2>
 <ul>
@@ -136,7 +149,8 @@ vrp join a.mp3 b.mp3 --out joined.mp3
 vrp convert Oct02_1.wav --format flac
 vrp devices
 vrp schedule add --name Morning --start 2026-10-21T09:00 --duration 0:30:00 --repeat weekdays
-vrp record --headless                           record without any window; Ctrl+C saves and stops</pre>
+vrp record --headless                           record without any window; Ctrl+C saves and stops
+vrp record --layout split                       microphone left, computer audio right (--layout mix: mixed)</pre>
 <p>Exit codes: 0 ok, 1 usage error, 2 device error, 3 file error, 4 not running, 5 busy. <b>Options &gt; Recording &gt; Run after each file is finished</b> runs your own command with <code>{path}</code>, <code>{duration_s}</code>, <code>{segments}</code> and <code>{start_iso}</code>.</p>
 
 <h2 id="trouble">Troubleshooting</h2>
