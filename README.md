@@ -24,6 +24,7 @@ Voice Recorder Pro sits quietly in the system tray and records the conversations
 | | |
 | --- | --- |
 | **Mic + computer audio in one file** | Both sides of a Zoom, Teams or Webex call, mixed into a single recording |
+| **Or on separate channels** | Your voice on the left, the other participants on the right, so transcription software can tell the two sides apart (new in 1.0.3) |
 | **Voice-activated** | Records only when sound is above your threshold, so long silences are not recorded |
 | **Portable** | Unzip and run `run.bat`. No installer, no admin rights |
 | **Small, transcription-ready files** | MP3 at 16 kHz mono, about 14 MB per hour |
@@ -40,6 +41,8 @@ Voice Recorder Pro sits quietly in the system tray and records the conversations
 
 ### Records both sides of a Zoom or Teams meeting
 Voice Recorder Pro records the **microphone** (your voice) and **computer audio** (everything played through your speakers or headset: the other participants in Zoom, Teams, Webex or a phone app) into one file. Each source has its own level meter and tick box, and you can switch either on or off at any time, even mid-recording. The result is a single recording of the whole conversation, ready for writing minutes.
+
+New in 1.0.3: choose **Options > Format > Channels > Separate** to keep the two apart in a stereo file, with your microphone on the left and the computer audio on the right. Speech-to-text software can then transcribe each side on its own, which makes it easier to see who said what. Use a headset, so the call is not also picked up by your microphone.
 
 ### Records only when someone is speaking
 Voice activation (Vox) starts recording when sound rises above a threshold you set and pauses when the room goes quiet (after a short hang time, 2 seconds by default, so pauses between sentences are kept). Long silences never reach the file, so:
@@ -123,6 +126,8 @@ Close the app, run `create-shortcut.bat /remove` if you created shortcuts, then 
 3. Check the Vox threshold: talk normally and watch the meter cross the dashed line. **Options > Vox > Calibrate** measures your room for you.
 4. Press **Record** (red button, or `Ctrl+Alt+R` from any app), then join the meeting.
 5. Press **Stop** (`Ctrl+Alt+S`) when the meeting ends.
+
+Optional: for transcripts that separate your voice from the other participants, choose **Options > Format > Channels > Separate: microphone left, computer audio right** before you record, and wear a headset.
 
 Recordings are saved to **`Documents\VRP Recordings`** (change this in **Options > Recording**). Open the MP3 in your transcription software to produce the text for your minutes.
 

@@ -14,6 +14,11 @@ nothing while nothing plays, so the buffer is padded with silence, and it keeps
 When the microphone is off, a wall clock drives the processor instead. Either
 source can be switched on or off at any time; the change applies from that
 moment on.
+
+Channel layout (v1.0.3): "mix" sums the ticked sources into every channel of
+the file; "split" writes a stereo file with the microphone alone on the left
+and computer audio alone on the right. In split mode each source is processed
+as one channel and the two are placed side by side, never summed.
 """
 from __future__ import annotations
 
@@ -32,7 +37,7 @@ from vrp.core import dsp, metadata
 from vrp.core.audio_backend import AudioError, BaseBackend, DeviceInfo
 from vrp.core.encoders import BaseWriter, WriterError, create_writer
 from vrp.core.journal import Journal
-from vrp.core.model import FormatSpec, Segment, iso_now
+from vrp.core.model import SPLIT_ROLES, FormatSpec, Segment, iso_now
 from vrp.core.vox import VoxGate, VoxParams
 
 log = logging.getLogger(__name__)
@@ -138,7 +143,7 @@ class Recorder:
     def _open_stream(self, dev, blocksize, latency, exclusive) -> None:
         fmt = self.cfg.fmt
         cmap = [c for c in self.cfg.channel_map if isinstance(c, int) and c >= 0]
-        want = (max(cmap) + 1) if cmap else fmt.channels
+        want = (max(cmap) + 1) if cmap else self._src_ch()
         if dev.max_in and want > dev.max_in:
             want = dev.max_in
             cmap = [c for c in cmap if c < want]
@@ -349,8 +354,9 @@ class Recorder:
 
     def _setup_dsp(self) -> None:
         fmt = self.cfg.fmt
-        self.resampler = dsp.Resampler(self.capture_rate or fmt.rate, fmt.rate, fmt.channels)
-        self.hpf = dsp.HighPass(fmt.rate, fmt.channels) if self.cfg.highpass else None
+        ch = self._src_ch()
+        self.resampler = dsp.Resampler(self.capture_rate or fmt.rate, fmt.rate, ch)
+        self.hpf = dsp.HighPass(fmt.rate, ch) if self.cfg.highpass else None
         self.gain = dsp.db_to_gain(self.cfg.gain_db)
         # computer audio path
         self._sys_gain = dsp.db_to_gain(self.cfg.system_gain_db)
@@ -364,6 +370,10 @@ class Recorder:
         self._fifo_cap = int(SYS_MAX_BUFFER_S * fmt.rate)
 
     # ----------------------------------------------------------- two sources
+    def _src_ch(self) -> int:
+        """Channels each source is processed in: 1 when split (each fills one side), else the file's."""
+        return 1 if self.cfg.fmt.split else self.cfg.fmt.channels
+
     def _clock_factor(self) -> float:
         try:
             return float(self.backend.clock_factor()) or 1.0
@@ -396,10 +406,11 @@ class Recorder:
                 break
             if gen != self._sys_gen or not self._sys_live or block.size == 0:
                 continue
-            if self._sys_fmt != (rate, ch, fmt.rate, fmt.channels) or self._sys_rs is None:
-                self._sys_fmt = (rate, ch, fmt.rate, fmt.channels)
-                self._sys_rs = dsp.Resampler(rate, fmt.rate, fmt.channels)
-            y = self._sys_rs.process(dsp.to_channels(block, fmt.channels))
+            out_ch = self._src_ch()
+            if self._sys_fmt != (rate, ch, fmt.rate, out_ch) or self._sys_rs is None:
+                self._sys_fmt = (rate, ch, fmt.rate, out_ch)
+                self._sys_rs = dsp.Resampler(rate, fmt.rate, out_ch)
+            y = self._sys_rs.process(dsp.to_channels(block, out_ch))
             if y.shape[0] == 0:
                 continue
             if self._sys_gain != 1.0:
@@ -422,7 +433,7 @@ class Recorder:
         """n frames of computer audio (silence where nothing was delivered); None when off."""
         if not self._sys_live:
             return None
-        out = np.zeros((n, self.cfg.fmt.channels), dtype=np.float32)
+        out = np.zeros((n, self._src_ch()), dtype=np.float32)
         if not self._sys_primed:
             waited = time.monotonic() - self._fifo_since
             if self._fifo_n and (self._fifo_n >= self._prebuf or
@@ -440,7 +451,7 @@ class Recorder:
     def _clear_system(self) -> None:
         self._fifo, self._fifo_n, self._sys_primed = [], 0, False
         self._sys_rs, self._sys_fmt = None, None
-        self.sys_levels = np.zeros(self.cfg.fmt.channels, dtype=np.float32)
+        self.sys_levels = np.zeros(self._src_ch(), dtype=np.float32)
 
     # ---------------------------------------------------------------- control
     def _control(self, msg) -> None:
@@ -449,7 +460,7 @@ class Recorder:
             self._mic_live, self._mic_lost = bool(msg[1]), bool(msg[2])
             if not self._mic_live:
                 self._clock_t0 = None             # the wall clock takes over from now
-                self.levels = np.zeros(self.cfg.fmt.channels, dtype=np.float32)
+                self.levels = np.zeros(self._src_ch(), dtype=np.float32)
             return
         if kind == "system":
             self._sys_live = bool(msg[1])
@@ -457,7 +468,7 @@ class Recorder:
             return
         if kind == "stream_opened":
             self.capture_rate, self.capture_channels = msg[1], msg[2]
-            self.resampler = dsp.Resampler(self.capture_rate, self.cfg.fmt.rate, self.cfg.fmt.channels)
+            self.resampler = dsp.Resampler(self.capture_rate, self.cfg.fmt.rate, self._src_ch())
             self.t0_wall = None
             self._lost_reported = False
         elif kind == "start":
@@ -506,7 +517,7 @@ class Recorder:
             self.gain = dsp.db_to_gain(cfg.gain_db)
             self._sys_gain = dsp.db_to_gain(cfg.system_gain_db)
             if cfg.highpass and self.hpf is None:
-                self.hpf = dsp.HighPass(cfg.fmt.rate, cfg.fmt.channels)
+                self.hpf = dsp.HighPass(cfg.fmt.rate, self._src_ch())
             elif not cfg.highpass:
                 self.hpf = None
         elif kind == "folder":
@@ -571,18 +582,18 @@ class Recorder:
         return self.t0_wall + (sample - self.t0_sample) / self.cfg.fmt.rate
 
     def _mic_frames(self, x: np.ndarray) -> np.ndarray:
-        """Microphone block -> file rate and channels, with gain and filter."""
-        fmt = self.cfg.fmt
+        """Microphone block -> file rate and source channels (1 when split), with gain and filter."""
+        ch = self._src_ch()
         if x.ndim == 1:
             x = x[:, None]
         if self.channel_map:
             x = x[:, [c for c in self.channel_map if c < x.shape[1]] or [0]]
-        if fmt.channels == 1 and x.shape[1] > 1:
+        if ch == 1 and x.shape[1] > 1:
             x = x[:, :2].mean(axis=1, keepdims=True)
-        elif fmt.channels == 2 and x.shape[1] == 1:
+        elif ch == 2 and x.shape[1] == 1:
             x = np.repeat(x, 2, axis=1)
-        elif x.shape[1] > fmt.channels:
-            x = x[:, :fmt.channels]
+        elif x.shape[1] > ch:
+            x = x[:, :ch]
         x = np.ascontiguousarray(x, dtype=np.float32)
         x = self.resampler.process(x)
         if x.shape[0] == 0:
@@ -618,7 +629,12 @@ class Recorder:
             self.sys_levels = sp
             if sp.size and float(np.max(sp)) >= 0.99:
                 self.sys_clip_until = time.monotonic() + 2.0
-        if mic is None and sys_ is None:
+        if fmt.split:                                              # microphone left, computer audio right
+            silent = np.zeros((n, 1), dtype=np.float32)            # an unticked source records silence
+            left = mic if mic is not None else silent
+            right = sys_ if sys_ is not None else silent
+            x = np.clip(np.hstack([left, right]), -1.0, 1.0)
+        elif mic is None and sys_ is None:
             x = np.zeros((n, fmt.channels), dtype=np.float32)      # nothing ticked: silence
         elif sys_ is None:
             x = mic
@@ -755,6 +771,10 @@ class Recorder:
         if self.writer:
             t["title"] = os.path.splitext(os.path.basename(self.writer.path))[0]
         t["date"] = getattr(self, "file_started_iso", "")
+        if self.cfg.fmt.split:
+            t["channels"] = SPLIT_ROLES
+        else:
+            t.pop("channels", None)
         return t
 
     def _finalize_file(self) -> None:

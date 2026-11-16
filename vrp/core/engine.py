@@ -26,7 +26,7 @@ from vrp.core.audiofile import UnsupportedFile, probe
 from vrp.core.dsp import dbfs_to_percent
 from vrp.core.encoders import can_append
 from vrp.core.loopback import LoopbackError
-from vrp.core.model import FileModel, FormatSpec, Segment, fmt_duration, fmt_size
+from vrp.core.model import SPLIT_ROLES, FileModel, FormatSpec, Segment, fmt_duration, fmt_size
 from vrp.core.player import Player
 from vrp.core.recorder import ARMED as R_ARMED
 from vrp.core.recorder import PAUSED as R_PAUSED
@@ -201,10 +201,14 @@ class Engine(QObject):
     def fmt(self) -> FormatSpec:
         f = FormatSpec.from_settings(self.settings)
         o = self._overrides
-        if o.get("codec") or o.get("rate") or o.get("channels"):
+        if o.get("codec") or o.get("rate") or o.get("channels") or o.get("layout"):
             f.codec = o.get("codec") or f.codec
             f.rate = int(o.get("rate") or f.rate)
             f.channels = int(o.get("channels") or f.channels)
+            if o.get("layout") in ("mix", "split"):
+                f.layout = o["layout"]
+            elif o.get("channels"):
+                f.layout = "mix"                 # --channels alone asks for an ordinary mono or stereo file
             f = f.normalised()
         return f
 
@@ -353,6 +357,8 @@ class Engine(QObject):
     # ================================================================== recording
     def _compatible(self, f: FileModel, fmt: FormatSpec) -> bool:
         if not can_append(f.codec) or f.codec != fmt.codec or f.rate != fmt.rate or f.channels != fmt.channels:
+            return False
+        if f.layout != fmt.layout:              # a split file and a mixed stereo file are both 2-channel
             return False
         if f.codec == "wav" and f.subtype != fmt.wav_subtype:
             return False
@@ -509,7 +515,7 @@ class Engine(QObject):
         o = {k: v for k, v in overrides.items() if v not in (None, "")}
         self._overrides = {"vox": o.get("vox", "current"), "device": o.get("device", ""),
                            "codec": o.get("format", ""), "rate": o.get("rate"), "channels": o.get("channels"),
-                           "pattern": o.get("pattern", ""), "out": o.get("out")}
+                           "layout": o.get("layout", ""), "pattern": o.get("pattern", ""), "out": o.get("out")}
         self.close_file()
         if not self._start_capture(None):
             self._overrides = {}
@@ -1134,7 +1140,8 @@ class Engine(QObject):
                                   ("PCM_24" if fmt.codec == "flac" and fmt.flac_bits == 24 else
                                    "PCM_16" if fmt.codec == "flac" else ""),
                                   kbps=fmt.mp3_kbps if fmt.codec == "mp3" else None,
-                                  segments=list(segs) or [], recording=True)
+                                  segments=list(segs) or [], recording=True,
+                                  tags={"VRP_CHANNELS": SPLIT_ROLES} if fmt.split else {})
             self.mark_in = self.mark_out = None
             self.settings.add_recent(path)
             self.fileChanged.emit()

@@ -14,6 +14,7 @@ import os
 import shutil
 import time
 from array import array
+from dataclasses import replace as _dc_replace
 from pathlib import Path
 from typing import Callable
 
@@ -308,13 +309,18 @@ def format_of(model: FileModel) -> FormatSpec:
     if model.codec == "mp3":
         kbps = model.kbps or 64
         from vrp.core.model import mp3_kbps_choices, nearest
-        return FormatSpec("mp3", model.rate, min(2, model.channels), mp3_mode="cbr",
-                          mp3_kbps=nearest(kbps, mp3_kbps_choices(model.rate)))
+        return _with_layout(FormatSpec("mp3", model.rate, min(2, model.channels), mp3_mode="cbr",
+                                       mp3_kbps=nearest(kbps, mp3_kbps_choices(model.rate))), model)
     if model.codec == "flac":
         bits = 24 if "24" in model.subtype else 16
-        return FormatSpec("flac", model.rate, min(2, model.channels), flac_bits=bits)
+        return _with_layout(FormatSpec("flac", model.rate, min(2, model.channels), flac_bits=bits), model)
     sub = model.subtype if model.subtype in wavfile.SUBTYPE_TAG else "PCM_16"
-    return FormatSpec("wav", model.rate, min(2, model.channels), wav_subtype=sub)
+    return _with_layout(FormatSpec("wav", model.rate, min(2, model.channels), wav_subtype=sub), model)
+
+
+def _with_layout(fmt: FormatSpec, model: FileModel) -> FormatSpec:
+    fmt.layout = model.layout
+    return fmt
 
 
 # ================================================================ public API
@@ -351,7 +357,12 @@ def write_ranges(model: FileModel, ranges: list[tuple[int, int]], dst: str, fmt:
             metadata.mp3_write_tag(tmp, metadata.mp3_tag_data(segs, model.rate, total, tags))
             _finish(tmp, dst)
         else:
-            fmt = fmt or format_of(model)
+            fmt = _dc_replace(fmt) if fmt is not None else format_of(model)
+            if model.layout == "split" and fmt.channels == 2:
+                fmt.layout = "split"              # left and right keep their roles (1.0.3)
+            else:
+                fmt.layout = "mix"
+                tags.pop("channels", None)        # mono or mixed output: the roles no longer apply
             w = _decode_ranges(model, ranges, tmp, fmt, progress, cancel)
             ratio = fmt.rate / model.rate
             segs = map_segments(model.segments, ranges, model.frames, model.rate)
@@ -551,6 +562,9 @@ def join(paths_in: list[str], dst: str, convert: bool = False, progress: Progres
         raise EditError("Choose at least two files to join.")
     models = [probe(p) for p in paths_in]
     first = models[0]
+    if any(m.layout != first.layout for m in models):
+        raise EditError("These files cannot be joined: some keep the microphone and computer audio on "
+                        "separate channels and some do not.")
     same = all(m.codec == first.codec and m.rate == first.rate and m.channels == first.channels and
                (m.codec != "wav" or m.subtype == first.subtype) for m in models)
     if not same and not convert:

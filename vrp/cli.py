@@ -54,6 +54,8 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--format", choices=["mp3", "wav", "flac"])
     r.add_argument("--rate", type=int)
     r.add_argument("--channels", type=int, choices=[1, 2])
+    r.add_argument("--layout", choices=["mix", "split"],
+                   help="mix: sources mixed together; split: microphone left, computer audio right")
     g = r.add_mutually_exclusive_group()
     g.add_argument("--out", help="output file")
     g.add_argument("--pattern", help="file-name pattern")
@@ -128,7 +130,7 @@ def _progress(label: str):
 
 def record_args(ns) -> dict:
     from vrp.core.model import parse_time
-    args = {k: getattr(ns, k) for k in ("vox", "device", "format", "rate", "channels", "out", "pattern")
+    args = {k: getattr(ns, k) for k in ("vox", "device", "format", "rate", "channels", "layout", "out", "pattern")
             if getattr(ns, k, None) is not None}
     if ns.duration:
         args["duration"] = parse_time(ns.duration)

@@ -20,10 +20,17 @@ from vrp.settings import HOTKEY_ACTIONS
 
 
 # ================================================================== format form
-class FormatForm(QWidget):
-    """Codec, sample rate, channels and quality, with an estimate of file size."""
+SPLIT_MIN_KBPS = 64      # MP3 bitrate offered for two separate channels (1.0.3)
 
-    def __init__(self, parent=None):
+
+class FormatForm(QWidget):
+    """Codec, sample rate, channels and quality, with an estimate of file size.
+
+    allow_split adds the channel choice "Separate: microphone left, computer audio right"
+    (recording formats only; a conversion cannot separate sources that were mixed).
+    """
+
+    def __init__(self, parent=None, allow_split: bool = False):
         super().__init__(parent)
         f = QFormLayout(self)
         f.setContentsMargins(0, 0, 0, 0)
@@ -35,6 +42,10 @@ class FormatForm(QWidget):
         self.channels = QComboBox()
         self.channels.addItem("Mono", 1)
         self.channels.addItem("Stereo", 2)
+        if allow_split:
+            self.channels.addItem("Separate: microphone left, computer audio right", "split")
+        self.channels.setToolTip("Separate keeps your microphone and the computer audio on their own channels, "
+                                 "so each side of a call can be transcribed or told apart later.")
         self.mp3_mode = QComboBox()
         self.mp3_mode.addItem("Constant bitrate (CBR)", "cbr")
         self.mp3_mode.addItem("Variable bitrate (VBR)", "vbr")
@@ -64,6 +75,12 @@ class FormatForm(QWidget):
             f.addRow(lab, w)
             self._rows.setdefault(key, []).append((lab, w))
         f.addRow("", self.estimate)
+        self.split_note = QLabel()            # default text colour: meets the 4.5:1 contrast rule
+        self.split_note.setWordWrap(True)
+        self.split_note.setVisible(False)
+        f.addRow("", self.split_note)
+        self._was_split = False
+        self._raised = False
         for w in (self.codec, self.rate, self.channels, self.mp3_mode, self.kbps, self.subtype, self.flac_bits):
             w.currentIndexChanged.connect(self._refresh)
         self.vbr_q.valueChanged.connect(self._refresh)
@@ -111,17 +128,44 @@ class FormatForm(QWidget):
             for lab, w in rows:
                 lab.setVisible(vis[key])
                 w.setVisible(vis[key])
+        split = self.channels.currentData() == "split"
+        cbr = codec == "mp3" and self.mp3_mode.currentData() == "cbr"
+        if split and not self._was_split and cbr and (self.kbps.currentData() or 0) < SPLIT_MIN_KBPS:
+            self._fill_kbps(SPLIT_MIN_KBPS)   # two channels share the bitrate: raise it once
+            self._raised = True
+        elif not split:
+            self._raised = False
+        self._was_split = split
+        self._update_split_note(split, cbr)
         spec = self.spec()
         mb_min = spec.bytes_per_second() * 60 / 1e6
         self.estimate.setText(f"About {mb_min:.2f} MB per minute")
         self._busy = False
+
+    def _update_split_note(self, split: bool, cbr: bool) -> None:
+        if not split:
+            self.split_note.setVisible(False)
+            return
+        text = ("Your microphone is recorded on the left channel and computer audio on the right. "
+                "Use a headset: with speakers the call is also heard in the microphone channel.")
+        kbps = self.kbps.currentData() or 0
+        if cbr and kbps < SPLIT_MIN_KBPS:
+            text += (f" Below {SPLIT_MIN_KBPS} kbit/s the two channels share too little bitrate "
+                     "for clear speech.")
+        elif cbr and self._raised:
+            text += f" The bitrate was raised to {kbps} kbit/s for the two channels; you can change it."
+        self.split_note.setText(text)
+        self.split_note.setVisible(True)
 
     def set_spec(self, f: FormatSpec) -> None:
         self._busy = True
         self.codec.setCurrentIndex(max(0, self.codec.findData(f.codec)))
         self.subtype.setCurrentIndex(max(0, self.subtype.findData(f.wav_subtype)))
         self._fill_rates(f.codec, f.rate)
-        self.channels.setCurrentIndex(0 if f.channels == 1 else 1)
+        idx = self.channels.findData("split") if f.layout == "split" else -1
+        self.channels.setCurrentIndex(idx if idx >= 0 else 0 if f.channels == 1 else 1)
+        self._was_split = self.channels.currentData() == "split"     # a loaded setting is not raised
+        self._raised = False
         self.mp3_mode.setCurrentIndex(max(0, self.mp3_mode.findData(f.mp3_mode)))
         self._fill_kbps(f.mp3_kbps)
         self.vbr_q.setValue(f.mp3_vbr_q)
@@ -131,8 +175,11 @@ class FormatForm(QWidget):
         self._refresh()
 
     def spec(self) -> FormatSpec:
+        ch = self.channels.currentData() or 1
+        split = ch == "split"
         return FormatSpec(codec=self.codec.currentData(), rate=self.rate.currentData() or 16000,
-                          channels=self.channels.currentData() or 1, wav_subtype=self.subtype.currentData(),
+                          channels=2 if split else ch, layout="split" if split else "mix",
+                          wav_subtype=self.subtype.currentData(),
                           flac_bits=self.flac_bits.currentData() or 16, flac_level=self.flac_level.value(),
                           mp3_mode=self.mp3_mode.currentData(), mp3_kbps=self.kbps.currentData() or 32,
                           mp3_vbr_q=self.vbr_q.value()).normalised()

@@ -20,6 +20,12 @@ WAV_SUBTYPES = {
 }
 CODEC_EXT = {"mp3": ".mp3", "wav": ".wav", "flac": ".flac"}
 
+# Channel layouts (1.0.3). "mix": the ticked sources are summed into every channel of the file.
+# "split": a stereo file with the microphone alone on the left and computer audio alone on the right.
+LAYOUTS = ("mix", "split")
+SPLIT_ROLES = "L=microphone; R=computer audio"   # tag value that marks a split file
+WAV_ROLES_KEY = "ICHN"                           # LIST INFO field for the roles in WAV files
+
 
 def mp3_kbps_choices(rate: int) -> tuple[int, ...]:
     return MP3_KBPS_V1 if rate in MP3_RATES_V1 else MP3_KBPS_V2
@@ -53,6 +59,11 @@ class FormatSpec:
     mp3_mode: str = "cbr"
     mp3_kbps: int = 32
     mp3_vbr_q: int = 5
+    layout: str = "mix"           # mix | split (L = microphone, R = computer audio)
+
+    @property
+    def split(self) -> bool:
+        return self.layout == "split"
 
     @property
     def ext(self) -> str:
@@ -61,7 +72,9 @@ class FormatSpec:
     def normalised(self) -> "FormatSpec":
         """Clamp combinations the encoders cannot produce."""
         f = replace(self)
-        f.channels = 2 if f.channels >= 2 else 1
+        if f.layout not in LAYOUTS:
+            f.layout = "mix"
+        f.channels = 2 if f.channels >= 2 or f.layout == "split" else 1
         if f.codec == "mp3":
             f.rate = nearest(f.rate, MP3_RATES)
             f.mp3_kbps = nearest(f.mp3_kbps, mp3_kbps_choices(f.rate))
@@ -81,6 +94,7 @@ class FormatSpec:
             wav_subtype=s.get("fmt.wav_subtype"), flac_bits=s.get("fmt.flac_bits"),
             flac_level=s.get("fmt.flac_level"), mp3_mode=s.get("fmt.mp3.mode"),
             mp3_kbps=s.get("fmt.mp3.kbps"), mp3_vbr_q=s.get("fmt.mp3.vbr_q"),
+            layout=s.get("fmt.layout"),
         ).normalised()
 
     def to_json(self) -> dict:
@@ -92,16 +106,25 @@ class FormatSpec:
         for k, v in d.items():
             if hasattr(f, k):
                 setattr(f, k, v)
+        if f.layout not in LAYOUTS:          # journals from 1.0.2 and earlier have no layout
+            f.layout = "mix"
+        if f.layout == "split":
+            f.channels = 2
         return f
+
+    def channels_text(self) -> str:
+        if self.layout == "split":
+            return "separate L/R (mic | computer)"
+        return "stereo" if self.channels == 2 else "mono"
 
     def describe(self) -> str:
         if self.codec == "mp3":
             q = f"{self.mp3_kbps} kbit/s CBR" if self.mp3_mode == "cbr" else f"VBR V{self.mp3_vbr_q}"
-            return f"MP3 {fmt_rate(self.rate)} {'stereo' if self.channels == 2 else 'mono'} {q}"
+            return f"MP3 {fmt_rate(self.rate)} {self.channels_text()} {q}"
         if self.codec == "wav":
             return f"WAV {WAV_SUBTYPES.get(self.wav_subtype, self.wav_subtype)} {fmt_rate(self.rate)} " \
-                   f"{'stereo' if self.channels == 2 else 'mono'}"
-        return f"FLAC {self.flac_bits}-bit {fmt_rate(self.rate)} {'stereo' if self.channels == 2 else 'mono'}"
+                   f"{self.channels_text()}"
+        return f"FLAC {self.flac_bits}-bit {fmt_rate(self.rate)} {self.channels_text()}"
 
     def bytes_per_second(self) -> float:
         if self.codec == "mp3":
@@ -137,6 +160,13 @@ class FileModel:
     def duration(self) -> float:
         return self.frames / self.rate if self.rate else 0.0
 
+    @property
+    def layout(self) -> str:
+        """'split' when the file's tags say microphone left, computer audio right (1.0.3)."""
+        t = self.tags or {}
+        roles = t.get("VRP_CHANNELS") or t.get(WAV_ROLES_KEY) or ""
+        return "split" if self.channels == 2 and roles.strip() == SPLIT_ROLES else "mix"
+
     def segment_starts(self) -> list[int]:
         return [s.start for s in self.segments]
 
@@ -150,7 +180,7 @@ class FileModel:
     def sample_text(self) -> str:
         """'16 kHz ST', '44.1 kHz 16b MO' (FR-UI-007 Sample field)."""
         rate = fmt_rate(self.rate)
-        mo = "ST" if self.channels >= 2 else "MO"
+        mo = "L/R" if self.layout == "split" else "ST" if self.channels >= 2 else "MO"
         bits = ""
         st = self.subtype.upper()
         if self.codec == "wav" or self.codec == "flac":
