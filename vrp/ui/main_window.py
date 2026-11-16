@@ -612,7 +612,8 @@ class MainWindow(QMainWindow):
         else:
             spec = FormatSpec.from_settings(self.settings)
             self.f_segment.setText("")
-            self.f_sample.setText(f"{spec.rate / 1000:g} kHz {'ST' if spec.channels == 2 else 'MO'}")
+            mo = "L/R" if spec.split else "ST" if spec.channels == 2 else "MO"
+            self.f_sample.setText(f"{spec.rate / 1000:g} kHz {mo}")
             self.f_size.setText("")
         tr = e.timed_remaining
         self.f_size.setToolTip(f"Timed recording: {fmt_duration(tr)} left" if tr is not None else "")

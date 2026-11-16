@@ -354,9 +354,14 @@ def test_options_and_main_window(qapp, ctl):
     assert d2.fmt_form.channels.currentData() == "split"                # reopened: the choice is kept
     d2.done(0)
     e, w = ctl.engine, ctl.window
+    pump(qapp, 0.1)
+    assert w.f_sample.text().endswith("L/R")                             # idle: the format chosen for the next file
     e.record()
     assert wait_for(qapp, lambda: e.state.value == "recording")
-    assert "L/R" in w.f_sample.text()                                    # the Sample field while recording
+    assert "L/R" in w.f_sample.text()                                    # recording, before and after the file opens
+    assert wait_for(qapp, lambda: e.file is not None and e.file.recording)
+    pump(qapp, 0.1)
+    assert "L/R" in w.f_sample.text()
     pump(qapp, 0.3)
     e.stop()
     assert wait_for(qapp, lambda: e.state.value == "stopped")
