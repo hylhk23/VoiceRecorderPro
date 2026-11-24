@@ -22,7 +22,7 @@ ES_AWAYMODE_REQUIRED = 0x00000040
 
 
 def keep_awake(on: bool) -> None:
-    """Stop Windows sleeping while recording or armed (FR-REC-012).
+    """Stop Windows sleeping while recording or armed.
 
     Must be called from the GUI thread; the request is per-thread.
     """
@@ -37,7 +37,7 @@ def keep_awake(on: bool) -> None:
 
 
 def send_to_recycle_bin(path: str | os.PathLike) -> bool:
-    """Move a file to the Recycle Bin, never deleting permanently (FR-FILE-010)."""
+    """Move a file to the Recycle Bin, never deleting permanently."""
     p = os.path.abspath(os.fspath(path))
     if not os.path.exists(p):
         return True
@@ -136,7 +136,7 @@ def open_folder(path: str | os.PathLike, select: str | None = None) -> None:
 
 
 def drive_label(path: str | os.PathLike) -> str:
-    """'E:' on Windows, the mount point elsewhere (FR-UI-008)."""
+    """'E:' on Windows, the mount point elsewhere."""
     p = os.path.abspath(os.fspath(path))
     if IS_WINDOWS:
         drive, _ = os.path.splitdrive(p)

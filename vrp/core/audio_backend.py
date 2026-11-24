@@ -1,9 +1,9 @@
-"""Audio device access (Section 13).
+"""Audio device access.
 
 SoundDeviceBackend wraps PortAudio through the sounddevice package. Devices are
-stored by host API name + device name, never by index (FR-DEV-003).
+stored by host API name + device name, never by index.
 FakeBackend produces synthetic input and swallows output so the engine runs
-without sound hardware (NFR-017).
+without sound hardware.
 """
 from __future__ import annotations
 
@@ -203,7 +203,7 @@ class SoundDeviceBackend(BaseBackend):
             raise AudioError(f"Could not open {dev.name}: {exc}") from exc
 
     def rescan(self) -> None:
-        """Re-read the device list. Closes all PortAudio streams (FR-DEV-005)."""
+        """Re-read the device list. Closes all PortAudio streams."""
         with self._lock:
             try:
                 self.sd._terminate()

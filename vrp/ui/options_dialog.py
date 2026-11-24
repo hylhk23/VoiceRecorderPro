@@ -1,4 +1,4 @@
-"""Options dialog (Section 15): every setting, per-tab defaults, export/import."""
+"""Options dialog: every setting, per-tab defaults, export/import."""
 from __future__ import annotations
 
 import os
@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QDialog,
 
 from vrp import paths, winutil
 from vrp.core import naming
+from vrp.core.cleanup import denoise_support
 from vrp.core.dsp import percent_to_dbfs
 from vrp.core.model import FormatSpec
 from vrp.inputs import external, keymap
@@ -271,6 +272,35 @@ class OptionsDialog(QDialog):
         self.fmt_form.codec.currentIndexChanged.connect(self._update_preview)
         f.addRow("Input gain:", self._spin("fmt.gain_db", -20, 20, " dB"))
         f.addRow("", self._check("fmt.highpass", "High-pass filter at 80 Hz (removes rumble and DC offset)"))
+        # clean-up of the microphone (1.0.4)
+        g = QGroupBox("Clean-up (microphone)")
+        gf = QFormLayout(g)
+        self.denoise_chk = self._check("fmt.denoise", "Noise suppression: remove steady background noise "
+                                                       "(air conditioning, fans, computer hum)")
+        self.level_chk = self._check("fmt.level", "Automatic level: bring near and far voices to a similar "
+                                                   "loudness")
+        self.keep_chk = self._check("fmt.keep_original", "Also keep an untouched copy "
+                                                         "(<name>-original, same format)")
+        gf.addRow(self.denoise_chk)
+        gf.addRow(self.level_chk)
+        gf.addRow(self.keep_chk)
+        ok, why = denoise_support()
+        note = QLabel("Applies to the microphone only, from the next recording. Vox listens after noise "
+                      "suppression and before the automatic level. Noise suppression delays the recording by "
+                      "about 0.2 s, and computer audio is delayed with it so the two stay in step. Voices of "
+                      "other people nearby are reduced only a little."
+                      if ok else f"Noise suppression is not available on this PC: {why}")
+        note.setWordWrap(True)
+        gf.addRow(note)
+        if not ok:
+            self.denoise_chk.setEnabled(False)
+
+        def keep_state(*_):
+            self.keep_chk.setEnabled(self.denoise_chk.isChecked() or self.level_chk.isChecked())
+        self.denoise_chk.toggled.connect(keep_state)
+        self.level_chk.toggled.connect(keep_state)
+        self._keep_state = keep_state
+        f.addRow(g)
 
     def _vox(self) -> None:
         f = self._page("Vox")
@@ -899,7 +929,7 @@ class OptionsDialog(QDialog):
         self.dev_note.setText("Device list refreshed.")
 
     def _dev_test(self) -> None:
-        """Record 3 s from the chosen input and play it back (FR-DEV-009)."""
+        """Record 3 s from the chosen input and play it back."""
         if self.engine.capturing or self.engine.recorder.input_open:
             self.dev_note.setText("Stop recording and monitoring first.")
             return
@@ -972,6 +1002,8 @@ class OptionsDialog(QDialog):
             else:
                 setter(s.get(key))
         self._update_preview()
+        if hasattr(self, "_keep_state"):
+            self._keep_state()
 
     def values(self) -> dict:
         vals = {}

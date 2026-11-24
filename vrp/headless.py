@@ -1,4 +1,4 @@
-"""Headless recording: no window, no tray (FR-CLI-004).
+"""Headless recording: no window, no tray.
 
 Every recording feature works (Vox, rollover, schedules from the settings
 file). Ctrl+C or SIGTERM stops and finalises the file before exiting.

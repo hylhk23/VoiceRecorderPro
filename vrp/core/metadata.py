@@ -1,4 +1,4 @@
-"""Write segment boundaries and tags into finished files (FR-FILE-004, FR-FILE-008)."""
+"""Write segment boundaries and tags into finished files."""
 from __future__ import annotations
 
 import json
@@ -8,7 +8,7 @@ from datetime import datetime
 
 from vrp import __version__, paths
 from vrp.core import flacmeta, id3, wavfile
-from vrp.core.model import WAV_ROLES_KEY, Segment
+from vrp.core.model import WAV_PROCESSING_KEY, WAV_ROLES_KEY, Segment
 
 SOFTWARE = f"Voice Recorder Pro {__version__}"
 
@@ -27,6 +27,7 @@ def wav_trailer(segments: list[Segment], tags: dict) -> bytes:
         "ISRC": tags.get("device", ""),
         "ISFT": SOFTWARE,
         WAV_ROLES_KEY: tags.get("channels", ""),       # 1.0.3: channel roles of a split file
+        WAV_PROCESSING_KEY: tags.get("processing", ""),  # 1.0.4: clean-up applied
     }
     return wavfile.trailer_bytes(cues, info)
 
@@ -58,6 +59,8 @@ def mp3_tag_data(segments: list[Segment], rate: int, total_frames: int, tags: di
         extra["VRP_START"] = tags["date"]
     if tags.get("channels"):
         extra["VRP_CHANNELS"] = tags["channels"]
+    if tags.get("processing"):
+        extra["VRP_PROCESSING"] = tags["processing"]
     return id3.TagData(title=tags.get("title", ""), artist=tags.get("artist", ""),
                        comment=tags.get("comment", ""), date=tags.get("date", ""),
                        encoder=SOFTWARE, extra=extra, chapters=chapters)
@@ -92,7 +95,7 @@ def flac_write_tags(path: str, segments: list[Segment], rate: int, tags: dict) -
     comments = []
     for key, tk in (("TITLE", "title"), ("ARTIST", "artist"), ("COMMENT", "comment"),
                     ("DATE", "date"), ("VRP_DEVICE", "device"), ("VRP_FORMAT", "format"),
-                    ("VRP_CHANNELS", "channels")):
+                    ("VRP_CHANNELS", "channels"), ("VRP_PROCESSING", "processing")):
         if tags.get(tk):
             comments.append((key, tags[tk]))
     comments.append(("ENCODER", SOFTWARE))

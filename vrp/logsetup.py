@@ -1,4 +1,4 @@
-"""Rotating log files (NFR-010)."""
+"""Rotating log files."""
 from __future__ import annotations
 
 import logging

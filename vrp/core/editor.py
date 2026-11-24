@@ -1,10 +1,10 @@
-"""Direct-to-file edit commands (Section 10).
+"""Direct-to-file edit commands.
 
 WAV is cut by copying whole sample frames, MP3 by copying whole MPEG frames
 (plus the frames holding bit-reservoir data for the first one), so neither is
 re-encoded. Other formats are decoded and re-encoded at the original settings.
 Every edit writes a temporary file in the same folder, fsyncs it, and renames
-it into place; the original is untouched on any error or cancel (FR-EDIT-005).
+it into place; the original is untouched on any error or cancel.
 """
 from __future__ import annotations
 
@@ -379,7 +379,7 @@ def write_ranges(model: FileModel, ranges: list[tuple[int, int]], dst: str, fmt:
 
 def extract(model: FileModel, start: int, end: int, dst: str | None = None, fmt: FormatSpec | None = None,
             progress: Progress = None, cancel: Cancel = None) -> FileModel:
-    """Copy the selection to a new file; the original is unchanged (FR-EDIT, Extract)."""
+    """Extract: copy the selection to a new file; the original is unchanged."""
     if dst is None:
         base, ext = os.path.splitext(model.path)
         k = 1
@@ -416,7 +416,7 @@ def _write_undo(folder: str, data: dict) -> None:
 
 
 def backup(path: str) -> str:
-    """Keep a copy for Undo Last Edit (one level per file, FR-EDIT-006)."""
+    """Keep a copy for Undo Last Edit (one level per file)."""
     folder = os.path.dirname(os.path.abspath(path))
     d = Path(folder) / UNDO_DIR
     d.mkdir(exist_ok=True)
@@ -557,7 +557,7 @@ def insert_boundary(model: FileModel, at: int) -> FileModel:
 
 def join(paths_in: list[str], dst: str, convert: bool = False, progress: Progress = None,
          cancel: Cancel = None) -> FileModel:
-    """Concatenate files into dst (FR-EDIT-008)."""
+    """Concatenate files into dst."""
     if len(paths_in) < 2:
         raise EditError("Choose at least two files to join.")
     models = [probe(p) for p in paths_in]

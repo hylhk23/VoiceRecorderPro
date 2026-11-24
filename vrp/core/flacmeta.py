@@ -1,4 +1,4 @@
-"""Read and rewrite the VORBIS_COMMENT block of a FLAC file (Section 8.2).
+"""Read and rewrite the VORBIS_COMMENT block of a FLAC file.
 
 Chapters are stored as CHAPTER001=HH:MM:SS.mmm and CHAPTER001NAME=<label>.
 """

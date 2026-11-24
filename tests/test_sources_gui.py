@@ -62,7 +62,7 @@ def test_about_box(qapp, ctl):
     w.about()
     pump(qapp, 0.05)
     dlg = w._about
-    assert __version__ == "1.0.3" and "1.0.3" in dlg.title.text()
+    assert __version__ in dlg.title.text()
     assert "https://software.4u.hk" in dlg.link.text() and dlg.link.openExternalLinks()
     fine = dlg.fine.text()
     assert "Neo Time Consulting" in fine and "ABSOLUTELY NO WARRANTY" in fine and "©" in fine

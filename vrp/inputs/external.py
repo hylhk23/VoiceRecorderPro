@@ -1,4 +1,4 @@
-"""External device control (Section 12): the modern replacement for the game port.
+"""External device control: the modern replacement for the game port.
 
 Sources
   joystick  Windows joystick API (winmm) - USB game controllers, button boxes,
@@ -209,7 +209,7 @@ class SerialSource(Source):
         self.port.timeout = 0
         self.port.dsrdtr = False
         self.port.rtscts = False
-        self.port.dtr = self.drive_dtr        # DTR as source voltage for contacts (FR-EXT-010)
+        self.port.dtr = self.drive_dtr        # DTR as source voltage for contacts
         self.port.rts = False
         self.port.open()
         self.ok = True
@@ -394,7 +394,7 @@ class ExternalManager(QObject):
         self.suspended = on
 
     def set_app_state(self, state: str) -> None:
-        """Drive output lines from the engine state (FR-EXT-008)."""
+        """Drive output lines from the engine state."""
         self._app_state = state
         self._apply_outputs()
 
@@ -447,7 +447,7 @@ class ExternalManager(QObject):
         while not self._stop.is_set():
             t0 = time.monotonic()
             with self._lock:
-                # reopen missing devices every 2 s (FR-EXT-007)
+                # reopen missing devices every 2 s
                 for key, last in list(self.missing.items()):
                     if t0 - last >= 2.0:
                         self.missing[key] = t0
@@ -520,7 +520,7 @@ class ExternalManager(QObject):
             self.actionEvent.emit(m.action, on)
 
     def _device_lost(self, key: str) -> None:
-        """FR-EXT-006: keep state, or treat the loss as 'input released'."""
+        """Keep state, or treat the loss as 'input released'."""
         for m in self.mappings:
             if m.device_key != key:
                 continue

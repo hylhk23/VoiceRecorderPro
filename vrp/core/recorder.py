@@ -1,7 +1,7 @@
-"""Recording pipeline (Section 6).
+"""Recording pipeline.
 
 PortAudio callback -> queue -> processor thread. The callback only copies the
-block (FR-REC-002). The processor thread applies channel mapping, resampling,
+block. The processor thread applies channel mapping, resampling,
 gain, the high-pass filter, levels, Vox, segment bookkeeping, rollover,
 flushing, journals and write-error fallback. It talks to the engine through a
 control queue (in) and an event queue (out) so neither side blocks the other.
@@ -19,6 +19,17 @@ Channel layout (v1.0.3): "mix" sums the ticked sources into every channel of
 the file; "split" writes a stereo file with the microphone alone on the left
 and computer audio alone on the right. In split mode each source is processed
 as one channel and the two are placed side by side, never summed.
+
+Clean-up (v1.0.4): the microphone can pass through noise
+suppression and an automatic leveller (vrp.core.cleanup). Three versions of the
+recorded signal then exist side by side, all with the same sample numbers:
+  detect  - after noise suppression only; Vox, the meter and the threshold use it
+  out     - after the leveller too; this is what the recording gets
+  raw     - before clean-up; written to an untouched copy "<name>-original.<ext>"
+Noise suppression delays the microphone by a fixed amount, so computer audio and
+the untouched copy are delayed by the same amount and every file stays aligned.
+Vox hands out write operations by sample number; the recorder takes the same
+range of `out` and `raw` from short histories.
 """
 from __future__ import annotations
 
@@ -33,11 +44,13 @@ from typing import Callable
 
 import numpy as np
 
+from vrp import paths
 from vrp.core import dsp, metadata
 from vrp.core.audio_backend import AudioError, BaseBackend, DeviceInfo
+from vrp.core.cleanup import CleanChain, DelayLine, History
 from vrp.core.encoders import BaseWriter, WriterError, create_writer
 from vrp.core.journal import Journal
-from vrp.core.model import SPLIT_ROLES, FormatSpec, Segment, iso_now
+from vrp.core.model import SPLIT_ROLES, FormatSpec, Segment, iso_now, original_path
 from vrp.core.vox import VoxGate, VoxParams
 
 log = logging.getLogger(__name__)
@@ -65,6 +78,9 @@ class RecConfig:
     channel_map: list = field(default_factory=list)
     tags: dict = field(default_factory=dict)
     system_gain_db: int = 0               # computer audio level trim
+    denoise: bool = False                 # 1.0.4: noise suppression on the microphone
+    level: bool = False                   # 1.0.4: automatic level on the microphone
+    keep_original: bool = True            # 1.0.4: also write an untouched copy when cleaning
 
     @staticmethod
     def from_settings(s, device_name: str = "") -> "RecConfig":
@@ -81,6 +97,8 @@ class RecConfig:
             size_action=s.get("rec.size_action"), sidecar=s.get("rec.sidecar_json"),
             channel_map=list(s.get("dev.input_channels") or []),
             system_gain_db=s.get("rec.system_gain_db"),
+            denoise=bool(s.get("fmt.denoise")), level=bool(s.get("fmt.level")),
+            keep_original=bool(s.get("fmt.keep_original")),
             tags={"artist": s.get("general.user_name"), "comment": s.get("rec.comment"),
                   "device": device_name, "format": fmt.describe()},
         )
@@ -110,9 +128,11 @@ class Recorder:
         self.thread: threading.Thread | None = None
         self.overflows = 0
         self.last_block = 0.0
-        self.levels = np.zeros(1, dtype=np.float32)       # microphone (after gain / filter)
+        self.levels = np.zeros(1, dtype=np.float32)       # microphone as Vox hears it (after noise suppression)
+        self.in_levels = np.zeros(1, dtype=np.float32)    # microphone input (after gain / filter, before clean-up)
         self.sys_levels = np.zeros(1, dtype=np.float32)   # computer audio
-        self.mix_levels = np.zeros(1, dtype=np.float32)   # what is recorded (both, as ticked)
+        self.mix_levels = np.zeros(1, dtype=np.float32)   # what is recorded (both, as ticked; before the leveller)
+        self.clean: CleanChain | None = None
         self.clip_until = 0.0
         self.sys_clip_until = 0.0
         self.status: dict = {"mode": MONITOR}
@@ -214,7 +234,7 @@ class Recorder:
         return getattr(self.sys_stream, "name", "") if self.sys_stream is not None else ""
 
     def replace_device(self, dev: DeviceInfo) -> None:
-        """Re-open capture on a device after it was lost (FR-DEV-007)."""
+        """Re-open capture on a device after it was lost."""
         self._close_stream()
         self.device = dev
         self.ctl.put(("mic", True, False))
@@ -237,6 +257,7 @@ class Recorder:
         self.thread = None
         self.session_open = False
         self.levels = np.zeros(1, dtype=np.float32)
+        self.in_levels = np.zeros(1, dtype=np.float32)
         self.sys_levels = np.zeros(1, dtype=np.float32)
         self.mix_levels = np.zeros(1, dtype=np.float32)
 
@@ -294,6 +315,8 @@ class Recorder:
     def _reset_file_state(self) -> None:
         self.writer: BaseWriter | None = None
         self.journal: Journal | None = None
+        self.orig_writer: BaseWriter | None = None        # 1.0.4: untouched copy
+        self.orig_journal: Journal | None = None
         self.segments: list[Segment] = []
         self.seg_open = False
         self.file_t0 = 0.0
@@ -340,7 +363,7 @@ class Recorder:
                 continue
             try:
                 self._process(x, n_clock)
-            except Exception as exc:          # FR-ERR-021: emergency finalise first
+            except Exception as exc:          # Emergency finalise first
                 log.exception("processor failure")
                 self._emergency_finalize()
                 self.mode = MONITOR
@@ -368,6 +391,30 @@ class Recorder:
         self._sys_primed = False
         self._prebuf = int(SYS_PREBUFFER_S * fmt.rate)
         self._fifo_cap = int(SYS_MAX_BUFFER_S * fmt.rate)
+        self._setup_clean()
+
+    def _setup_clean(self) -> None:
+        """Build the clean-up chain for the next recording."""
+        if self.clean is not None:
+            self.clean.close()
+        cfg, fmt = self.cfg, self.cfg.fmt
+        ch = self._src_ch()
+        self.clean = None
+        self.clean_error = ""
+        if cfg.denoise or cfg.level:
+            chain = CleanChain(fmt.rate, ch, cfg.denoise, cfg.level)
+            self.clean_error = chain.error
+            if chain.active:
+                self.clean = chain
+        d = self.clean.delay if self.clean is not None else 0
+        self._sys_delay = DelayLine(d, ch) if d else None
+        self._keep_raw = self.clean is not None and cfg.keep_original
+        self._raw_delay = DelayLine(d, fmt.channels) if (self._keep_raw and d) else None
+        # `out` differs from `detect` only with the leveller, `raw` only with noise suppression
+        lev = self.clean is not None and self.clean.level is not None
+        den = self.clean is not None and self.clean.denoise is not None
+        self._hist_out = History(fmt.rate, fmt.channels) if lev else None
+        self._hist_raw = History(fmt.rate, fmt.channels) if (self._keep_raw and den) else None
 
     # ----------------------------------------------------------- two sources
     def _src_ch(self) -> int:
@@ -520,6 +567,10 @@ class Recorder:
                 self.hpf = dsp.HighPass(cfg.fmt.rate, self._src_ch())
             elif not cfg.highpass:
                 self.hpf = None
+            # clean-up changes apply from the next recording; while idle, at once (meter)
+            if self.mode == MONITOR and (cfg.denoise, cfg.level, cfg.keep_original) != \
+                    (old.denoise, old.level, old.keep_original):
+                self._setup_clean()
         elif kind == "folder":
             self.folder_override = msg[1]
         elif kind == "gap":
@@ -534,7 +585,7 @@ class Recorder:
     def _start(self, append_path: str | None) -> None:
         if self.mode in (ARMED, RECORDING, PAUSED):
             return
-        # a format change applies from the next file (FR-REC-014)
+        # a format change applies from the next file
         fmt = self.cfg.fmt
         if self.gate.rate != fmt.rate or self.gate.channels != fmt.channels:
             self.gate = VoxGate(fmt.rate, fmt.channels, self.cfg.vox)
@@ -542,6 +593,9 @@ class Recorder:
         self.gate.reset()
         self._setup_dsp()
         self._clock_t0 = None
+        if self.cfg.denoise and self.clean_error:
+            self._emit("info", f"Noise suppression is not available, so this recording is not cleaned of "
+                               f"background noise: {self.clean_error}.")
         if append_path:
             try:
                 self._open_file(append_path, append=True)
@@ -603,10 +657,26 @@ class Recorder:
         if self.hpf is not None:
             x = self.hpf.process(x)
         peaks = dsp.peak_levels(x)
-        self.levels = peaks
-        if peaks.size and float(np.max(peaks)) >= 0.99:
+        self.in_levels = peaks
+        if peaks.size and float(np.max(peaks)) >= 0.99:     # clipping is about the input
             self.clip_until = time.monotonic() + 2.0
         return x
+
+    def _mix(self, mic: np.ndarray | None, sys_: np.ndarray | None, n: int) -> np.ndarray:
+        """Combine the sources as the layout says (an unticked source records silence)."""
+        fmt = self.cfg.fmt
+        if fmt.split:                                              # microphone left, computer audio right
+            silent = np.zeros((n, 1), dtype=np.float32)
+            left = mic if mic is not None else silent
+            right = sys_ if sys_ is not None else silent
+            return np.clip(np.hstack([left, right]), -1.0, 1.0)
+        if mic is None and sys_ is None:
+            return np.zeros((n, fmt.channels), dtype=np.float32)
+        if sys_ is None:
+            return mic
+        if mic is None:
+            return sys_
+        return np.clip(mic + sys_, -1.0, 1.0)
 
     def _process(self, x: np.ndarray | None, n_clock: int = 0) -> None:
         """One microphone block (x), or n_clock frames of wall-clock time; mixed with computer audio."""
@@ -623,27 +693,32 @@ class Recorder:
             n = n_clock
         if not self._mic_live:
             self._clock_done += n
+        mic_det = mic_out = mic
+        if self.clean is not None:
+            # the chain runs on silence while the microphone is off, so its delay stays constant
+            src = mic if mic is not None else np.zeros((n, self._src_ch()), dtype=np.float32)
+            mic_det, mic_out = self.clean.process(src)
+        if mic is not None:
+            self.levels = dsp.peak_levels(mic_det)
         sys_ = self._sys_take(n)
         if sys_ is not None:
             sp = dsp.peak_levels(sys_)
             self.sys_levels = sp
             if sp.size and float(np.max(sp)) >= 0.99:
                 self.sys_clip_until = time.monotonic() + 2.0
-        if fmt.split:                                              # microphone left, computer audio right
-            silent = np.zeros((n, 1), dtype=np.float32)            # an unticked source records silence
-            left = mic if mic is not None else silent
-            right = sys_ if sys_ is not None else silent
-            x = np.clip(np.hstack([left, right]), -1.0, 1.0)
-        elif mic is None and sys_ is None:
-            x = np.zeros((n, fmt.channels), dtype=np.float32)      # nothing ticked: silence
-        elif sys_ is None:
-            x = mic
-        elif mic is None:
-            x = sys_
-        else:
-            x = np.clip(mic + sys_, -1.0, 1.0)
-        self.mix_levels = dsp.peak_levels(x)
+        sys_d = sys_
+        if self._sys_delay is not None:                            # keep step with the cleaned microphone
+            sys_d = self._sys_delay.process(sys_ if sys_ is not None else
+                                            np.zeros((n, self._src_ch()), dtype=np.float32))
+        x = self._mix(mic_det, sys_d, n)
+        x_out = x if mic_out is mic_det else self._mix(mic_out, sys_d, n)
         start = self.in_pos
+        if self._hist_out is not None:
+            self._hist_out.push(x_out, start)
+        if self._hist_raw is not None:
+            raw = self._mix(mic, sys_, n)
+            self._hist_raw.push(self._raw_delay.process(raw) if self._raw_delay is not None else raw, start)
+        self.mix_levels = dsp.peak_levels(x)
         self.in_pos += n
         if self.t0_wall is None:
             self.t0_wall = time.time() - n / fmt.rate
@@ -660,7 +735,7 @@ class Recorder:
                 ops.append(("write", x, start))
             self._apply(ops)
         self._periodic()
-        # writer falling behind (FR-ERR-008)
+        # writer falling behind
         backlog = self.q.qsize() * (self.blocksize / max(1, self.capture_rate)) if hasattr(self, "blocksize") else 0
         if backlog > 30 and not self.backlog_warned:
             self.backlog_warned = True
@@ -675,7 +750,12 @@ class Recorder:
             if op[0] == "begin":
                 self._begin_segment(op[1])
             elif op[0] == "write":
-                self._write(op[1], op[2])
+                data, s = op[1], op[2]
+                out = self._hist_out.get(s, data.shape[0]) if self._hist_out is not None else data
+                raw = None
+                if self._keep_raw:
+                    raw = self._hist_raw.get(s, data.shape[0]) if self._hist_raw is not None else data
+                self._write(out, s, raw)
             elif op[0] == "end":
                 self._end_segment()
 
@@ -692,7 +772,7 @@ class Recorder:
         if self.cfg.vox_enabled and self.cfg.vox_mode == "file" and self.writer is not None:
             self._finalize_file()
 
-    def _write(self, x: np.ndarray, sample: int) -> None:
+    def _write(self, x: np.ndarray, sample: int, raw: np.ndarray | None = None) -> None:
         if self.writer is None:
             self._begin_segment(sample)
             if self.writer is None:
@@ -715,6 +795,11 @@ class Recorder:
                     self.writer.write(x)
                 except OSError:
                     pass
+        if raw is not None and self.orig_writer is not None:
+            try:
+                self.orig_writer.write(raw)
+            except OSError as exc:
+                self._drop_original(exc)
 
     # -------------------------------------------------------------- files
     def _folder(self) -> str | None:
@@ -736,8 +821,51 @@ class Recorder:
         self.file_key = self._time_key(now)
         self.file_started_iso = iso_now(datetime.fromtimestamp(now))
         self.journal = Journal(path)
+        if self._keep_raw:
+            self._open_original(path, append, w.frames)
         self._write_journal()
         self._emit("file_opened", path, self.cfg.fmt, list(self.segments), w.frames, append)
+
+    def _open_original(self, path: str, append: bool, main_frames: int) -> None:
+        """Open the untouched copy next to the recording."""
+        try:
+            if append:
+                op = original_path(path)
+                if not os.path.exists(paths.longpath(op)):
+                    self._emit("info", f"No untouched copy is kept for {os.path.basename(path)}: it was "
+                                       "recorded without one.")
+                    return
+                ow = create_writer(op, self.cfg.fmt, append=True)
+                if ow.frames != main_frames:          # the two files no longer line up
+                    ow.abort()
+                    self._emit("info", f"The untouched copy of {os.path.basename(path)} no longer matches "
+                                       "it, so no more is added to it.")
+                    return
+            else:
+                ow = None
+                for k in range(1, 100):
+                    try:
+                        ow = create_writer(original_path(path, k), self.cfg.fmt)
+                        break
+                    except FileExistsError:
+                        continue
+                if ow is None:
+                    raise OSError("no free file name for the untouched copy")
+        except (OSError, WriterError) as exc:
+            log.warning("untouched copy not created for %s: %s", path, exc)
+            self._emit("info", f"The untouched copy could not be created ({exc}); the cleaned recording "
+                               "continues.")
+            return
+        self.orig_writer = ow
+        self.orig_journal = Journal(ow.path)
+
+    def _drop_original(self, exc: Exception) -> None:
+        """Writing the untouched copy failed: close it; the cleaned recording goes on."""
+        ow = self.orig_writer
+        log.error("untouched copy %s failed: %s", ow.path if ow else "", exc)
+        self._finalize_original()
+        self._emit("info", f"The untouched copy stopped because it could not be written ({exc}); "
+                           "the cleaned recording continues.")
 
     def _open_new_file(self, sample: int) -> bool:
         last_exc = None
@@ -750,7 +878,7 @@ class Recorder:
                 self.file_started_iso = iso_now(datetime.fromtimestamp(self.file_t0))
                 return True
             except FileExistsError:
-                continue                       # FR-ERR-016: another writer took the name
+                continue                       # Another writer took the name
             except (OSError, WriterError) as exc:
                 last_exc = exc
                 fb = self.fallback_folder()
@@ -775,12 +903,43 @@ class Recorder:
             t["channels"] = SPLIT_ROLES
         else:
             t.pop("channels", None)
+        if self.clean is not None:
+            t["processing"] = self.clean.describe()       # 1.0.4
         return t
+
+    def _orig_tags(self) -> dict:
+        """Tags of the untouched copy: the recording's, marked as the unprocessed original."""
+        t = self._tags()
+        t.pop("processing", None)
+        ow = self.orig_writer
+        if ow is not None:
+            t["title"] = os.path.splitext(os.path.basename(ow.path))[0]
+        main = os.path.basename(self.writer.path) if self.writer else ""
+        note = f"Untouched copy of {main}: no noise suppression or automatic level"
+        t["comment"] = f"{t['comment']} | {note}" if t.get("comment") else note
+        return t
+
+    def _finalize_original(self) -> None:
+        ow, oj = self.orig_writer, self.orig_journal
+        if ow is None:
+            return
+        segs = [s for s in self.segments if s.start < ow.frames] or [Segment(0)]
+        try:
+            ow.finalize(segs, self._orig_tags())
+            if self.cfg.sidecar:
+                metadata.write_sidecar(ow.path, segs, self.cfg.fmt.rate, self._orig_tags())
+            if oj:
+                oj.close()
+        except Exception:
+            log.exception("finalise failed for the untouched copy %s", ow.path)
+            ow.abort()                     # its journal stays: it is offered for recovery
+        self.orig_writer, self.orig_journal = None, None
 
     def _finalize_file(self) -> None:
         w, j = self.writer, self.journal
         if w is None:
             return
+        self._finalize_original()
         end = w.segment_start()
         segs = list(self.segments)
         while len(segs) > 1 and segs[-1].start >= end:     # drop empty trailing segments
@@ -810,7 +969,7 @@ class Recorder:
                 log.exception("emergency finalise failed")
 
     def _write_failed(self, exc: Exception, sample: int) -> None:
-        """FR-ERR-003: finish what we can, continue in the fallback folder."""
+        """Finish what we can, continue in the fallback folder."""
         path = self.writer.path if self.writer else ""
         log.error("write failed on %s: %s", path, exc)
         try:
@@ -855,7 +1014,7 @@ class Recorder:
         return None
 
     def _rollover(self, sample: int, reason: str) -> None:
-        """Close this file and continue seamlessly in a new one (FR-FILE-007)."""
+        """Close this file and continue seamlessly in a new one."""
         was_open = self.seg_open
         self._finalize_file()
         self._emit("rollover", reason)
@@ -872,6 +1031,14 @@ class Recorder:
             "segments": [s.to_json() for s in self.segments], "frames": self.writer.frames,
             "tags": self._tags(), "writer": self.writer.journal_state(), "updated": time.time(),
         })
+        ow = self.orig_writer
+        if self.orig_journal is not None and ow is not None:
+            self.orig_journal.write({
+                "version": 1, "path": ow.path, "format": self.cfg.fmt.to_json(),
+                "segments": [s.to_json() for s in self.segments if s.start < ow.frames] or [Segment(0).to_json()],
+                "frames": ow.frames, "tags": self._orig_tags(), "writer": ow.journal_state(),
+                "updated": time.time(),
+            })
 
     def _periodic(self) -> None:
         if self.writer is None:
@@ -880,16 +1047,29 @@ class Recorder:
         try:
             if now - self.last_flush >= self.cfg.flush_s:
                 self.writer.flush()
+                self._flush_original()
                 self._write_journal()
                 self.last_flush = now
             if now - self.last_fsync >= self.cfg.fsync_s:
                 self.writer.fsync()
+                if self.orig_writer is not None:
+                    try:
+                        self.orig_writer.fsync()
+                    except OSError as exc:
+                        self._drop_original(exc)
                 self.last_fsync = now
         except OSError as exc:
             self._write_failed(exc, self.in_pos)
 
+    def _flush_original(self) -> None:
+        if self.orig_writer is not None:
+            try:
+                self.orig_writer.flush()
+            except OSError as exc:
+                self._drop_original(exc)
+
     def _idle(self) -> None:
-        """No audio for 50 ms: keep flushing, detect a lost device (FR-DEV-007)."""
+        """No audio for 50 ms: keep flushing, detect a lost device."""
         self._periodic()
         if self.stream is not None and not self._lost_reported:
             if time.monotonic() - self.last_block > 2.0:
@@ -904,6 +1084,7 @@ class Recorder:
             "mic": getattr(self, "_mic_live", False),
             "system": getattr(self, "_sys_live", False),
             "path": w.path if w else None,
+            "original": self.orig_writer.path if self.orig_writer is not None else None,
             "frames": w.frames if w else 0,
             "position": w.segment_start() if w else 0,
             "size": w.size if w else 0,

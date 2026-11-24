@@ -1,4 +1,4 @@
-"""Offscreen GUI smoke test: window, menus enabled per state (Section 4.4)."""
+"""Offscreen GUI smoke test: window, menus enabled per state."""
 import pytest
 
 from conftest import pump, wait_for

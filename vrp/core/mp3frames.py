@@ -1,7 +1,7 @@
 """MPEG audio Layer III frame parsing and Xing/Info header construction.
 
 Used for crash-safe MP3 writing (Xing frame updated on finalise), exact
-duration, and frame-accurate copy-based editing (Section 10.1).
+duration, and frame-accurate copy-based editing.
 """
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Out-of-process tests: kill during recording (TC-06), exit codes and IPC (TC-16)."""
+"""Out-of-process tests: kill during recording, exit codes and IPC."""
 import json
 import os
 import signal
@@ -30,7 +30,7 @@ def env(tmp_path, isolated_config):
 
 @pytest.mark.skipif(sys.platform == "win32", reason="uses SIGKILL")
 @pytest.mark.parametrize("codec", ["wav", "mp3", "flac"])   # flac: regression test for the 1.0.3 recovery fix
-def test_tc06_kill_and_recover(tmp_path, env, codec):                    # TC-06, NFR-007
+def test_kill_and_recover(tmp_path, env, codec):
     p = subprocess.Popen([sys.executable, "-m", "vrp", "record", "--headless", "--fake-audio", "--format", codec],
                          cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     recorded = 0.0
@@ -63,7 +63,7 @@ def test_exit_codes(tmp_path, env):
     assert vrp("--help", env=env).returncode == 0
 
 
-def test_tc16_control_running_instance(tmp_path, env):                   # TC-16, FR-CLI-001/002
+def test_control_running_instance(tmp_path, env):
     p = subprocess.Popen([sys.executable, "-m", "vrp", "record", "--headless", "--fake-audio", "--format", "wav"],
                          cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:

@@ -1,4 +1,4 @@
-"""Application entry point: GUI start-up, single instance, wiring (Section 19)."""
+"""Application entry point: GUI start-up, single instance, wiring."""
 from __future__ import annotations
 
 import argparse
@@ -71,6 +71,7 @@ class AppController:
         app.aboutToQuit.connect(self._about_to_quit)
         self.engine.start()
         self._quitting = False
+        self._log_licence()
         QTimer.singleShot(0, lambda: self._after_show(args))
 
     # ------------------------------------------------------------- wiring
@@ -134,6 +135,18 @@ class AppController:
         self.window.refresh_all()
 
     # ------------------------------------------------------------ start-up
+    @staticmethod
+    def _log_licence() -> None:
+        """Licence state in the log (number only: the log holds no personal data)."""
+        from vrp import licence
+        st = licence.check_folder(paths.app_dir())
+        if st.registered:
+            log.info("licence: registered, %s %s", st.licence.type, st.licence.id)
+        else:
+            log.info("licence: unregistered (free for personal use)")
+        for problem in st.problems:
+            log.warning("licence file not accepted: %s", problem.split(":", 1)[-1].strip())
+
     def _after_show(self, args) -> None:
         from PySide6.QtWidgets import QMessageBox
 
@@ -234,7 +247,7 @@ def run_gui(args) -> int:
     app.setQuitOnLastWindowClosed(False)
     from vrp.ui import icons
     app.setWindowIcon(icons.app_icon())
-    # single instance: hand over to the running one (FR-CLI-001)
+    # single instance: hand over to the running one
     startup = json.loads(args.startup_cmd) if args.startup_cmd else None
     if startup is None and args.files:
         startup = {"cmd": "play", "args": {"file": os.path.abspath(args.files[0]), "from": 0}}

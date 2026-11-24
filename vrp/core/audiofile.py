@@ -18,7 +18,7 @@ def codec_of(path: str) -> str:
 
 
 def probe(path: str) -> FileModel:
-    """Read a file's details (FR-ERR-015: raises UnsupportedFile with a clear reason)."""
+    """Read a file's details (raises UnsupportedFile with a clear reason)."""
     import soundfile as sf
 
     lp = paths.longpath(path)
@@ -84,7 +84,7 @@ def probe(path: str) -> FileModel:
         with open(lp, "r+b"):
             pass
     except PermissionError:
-        model.readonly = True                 # FR-ERR-014 (locked by another program)
+        model.readonly = True                 # locked by another program
     except OSError:
         model.readonly = True
     return model

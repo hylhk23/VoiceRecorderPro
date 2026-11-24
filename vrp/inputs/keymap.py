@@ -55,7 +55,7 @@ def parse(binding: str) -> tuple[int, int] | None:
 
 
 def is_safe_global(binding: str) -> tuple[bool, str]:
-    """FR-HKEY-002/006: global bindings need a modifier; warn about AltGr clashes."""
+    """Global bindings need a modifier; warn about AltGr clashes."""
     p = parse(binding)
     if p is None:
         return False, "This key cannot be used."

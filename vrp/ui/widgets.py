@@ -1,4 +1,4 @@
-"""Custom widgets: level meter and position slider (FR-UI-004/005/009)."""
+"""Custom widgets: level meter and position slider."""
 from __future__ import annotations
 
 import math

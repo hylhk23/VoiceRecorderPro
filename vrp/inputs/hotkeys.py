@@ -1,10 +1,10 @@
-"""System-wide hot-keys (Section 11).
+"""System-wide hot-keys.
 
 Windows: a dedicated thread registers every binding with RegisterHotKey
-(MOD_NOREPEAT, so auto-repeat never fires an action twice - FR-HKEY-007) and
+(MOD_NOREPEAT, so auto-repeat never fires an action twice) and
 runs its own message loop. Hold-type actions (push-to-talk, scan) poll
 GetAsyncKeyState after the press to report the release. Bindings the OS
-refuses are reported per action (FR-HKEY-004).
+refuses are reported per action.
 """
 from __future__ import annotations
 

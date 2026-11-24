@@ -1,4 +1,4 @@
-"""Main window (Section 4) and menus (Section 5)."""
+"""Main window and menus."""
 from __future__ import annotations
 
 import os
@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog, QFrame, QGr
                                QLabel, QMainWindow, QMenu, QMessageBox, QProgressDialog, QPushButton,
                                QSizePolicy, QSlider, QSystemTrayIcon, QToolButton, QVBoxLayout, QWidget)
 
-from vrp import APP_NAME, __version__, paths, winutil
+from vrp import APP_NAME, __version__, licence, paths, winutil
 from vrp.core.audiofile import UnsupportedFile, probe
 from vrp.core.dsp import percent_to_dbfs
 from vrp.core.editor import format_of
@@ -20,7 +20,7 @@ from vrp.settings import HOTKEY_ACTIONS
 from vrp.ui import icons
 from vrp.ui.dialogs import (FormatDialog, JoinDialog, PropertiesDialog, ScheduleDialog, ShortcutsDialog,
                             TimedDialog)
-from vrp.ui.dialogs import AboutDialog
+from vrp.ui.dialogs import AboutDialog, LicenceDialog
 from vrp.ui.taskbar import TaskbarBadge
 from vrp.ui.widgets import LevelMeter, PositionSlider
 
@@ -309,6 +309,7 @@ class MainWindow(QMainWindow):
         self._act(m, "Open &Log Folder", lambda: winutil.open_folder(paths.log_dir()))
         self._act(m, "Check for &Updates", self.check_updates)
         m.addSeparator()
+        self._act(m, "&Licence\u2026", self.licence_info, key="licence")
         self._act(m, "&About", self.about)
 
     def _toggle_setting(self, key: str, on: bool) -> None:
@@ -551,7 +552,7 @@ class MainWindow(QMainWindow):
         self.vox_slider.setEnabled(not self.settings.get("vox.disabled"))
         self.tray_vox.setChecked(e.vox_enabled())
         self.tray_actions["play"].setEnabled(has_file and not cap)
-        # title (FR-UI-001 element 1)
+        # title
         name = os.path.basename(f.path) if f else "(no file)"
         mark = " [REC]" if st == State.RECORDING else " [VOX]" if st == State.ARMED else \
             " [PAUSED]" if st == State.REC_PAUSED else ""
@@ -602,7 +603,7 @@ class MainWindow(QMainWindow):
             self.level_value.setText(f"{percent_to_dbfs(peak):.0f}" if peak > 0.1 else "-∞")
         else:
             self.level_value.setText(f"{peak:.0f}")
-        # info fields (FR-UI-007)
+        # info fields
         if f is not None:
             n = len(f.segments)
             idx = n if st in CAPTURE else f.segment_index_at(e.position) + 1
@@ -617,12 +618,12 @@ class MainWindow(QMainWindow):
             self.f_size.setText("")
         tr = e.timed_remaining
         self.f_size.setToolTip(f"Timed recording: {fmt_duration(tr)} left" if tr is not None else "")
-        # position (FR-UI-009)
+        # position
         if f is not None:
             self.position.set_state(f.frames, e.position, f.rate, f.segment_starts(), e.selection, st in CAPTURE)
         else:
             self.position.set_state(0, 0, 16000, [], None, False)
-        # disk line (FR-UI-008, FR-EDIT-002, FR-REC-011)
+        # disk line
         self._update_disk_line(now)
         if st == State.PLAYING or st == State.SEEKING:
             self.tray.setToolTip(f"{APP_NAME}: {STATE_LABEL[st]} {os.path.basename(f.path) if f else ''} "
@@ -755,7 +756,7 @@ class MainWindow(QMainWindow):
     def _edit_started(self, label: str) -> None:
         self._progress = QProgressDialog(label + "…", "Cancel", 0, 1000, self)
         self._progress.setWindowTitle(label)
-        self._progress.setMinimumDuration(1000)        # FR-EDIT-009: only for longer operations
+        self._progress.setMinimumDuration(1000)        # Only for longer operations
         self._progress.setWindowModality(Qt.WindowModal)
         self._progress.canceled.connect(self.engine.cancel_edit)
         self._progress.setValue(0)
@@ -933,6 +934,12 @@ class MainWindow(QMainWindow):
                 return
         self.show_message("info", "Help", "The help file was not found next to the program.")
 
+    def licence_info(self) -> None:
+        dlg = LicenceDialog(str(paths.app_dir()), parent=self)
+        dlg.setAttribute(Qt.WA_DeleteOnClose)
+        self._licence = dlg
+        dlg.open()
+
     def check_updates(self) -> None:
         QMessageBox.information(self, "Check for Updates",
                                 f"You are running {APP_NAME} {__version__}. This build has no update server "
@@ -945,14 +952,15 @@ class MainWindow(QMainWindow):
                 libs.append(f"{name} {__import__(name).__version__}")
             except Exception:
                 pass
-        dlg = AboutDialog(", ".join(libs), icons.app_icon(), self)
+        dlg = AboutDialog(", ".join(libs), icons.app_icon(), self,
+                          licence_status=licence.check_folder(paths.app_dir()))
         dlg.setAttribute(Qt.WA_DeleteOnClose)
         self._about = dlg
         dlg.open()
 
 
 def apply_theme(app: QApplication, theme: str) -> None:
-    """Follow Windows, or force light/dark (FR-UI-015)."""
+    """Follow Windows, or force light/dark."""
     try:
         hints = app.styleHints()
         scheme = {"light": Qt.ColorScheme.Light, "dark": Qt.ColorScheme.Dark}.get(theme, Qt.ColorScheme.Unknown)

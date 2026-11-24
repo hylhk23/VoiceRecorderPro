@@ -8,3 +8,7 @@ Output/
 .pytest_cache/
 python/
 *.zip
+
+# built locally for the tests (Linux); only the Windows DLL ships
+vrp/lib/librnnoise.so
+.coverage

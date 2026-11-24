@@ -1,4 +1,4 @@
-"""File-name patterns (Section 8.1, FR-FILE-002/003)."""
+"""File-name patterns."""
 from __future__ import annotations
 
 import os
@@ -69,7 +69,7 @@ def _exists_any(base: Path) -> bool:
 def next_path(folder: str | os.PathLike, pattern: str, ext: str, when: datetime | None = None,
               host: str = "", device: str = "", tag: str = "", name: str = "",
               start_n: int = 1) -> Path:
-    """Build the next free file name; never returns an existing file (FR-FILE-002).
+    """Build the next free file name; never returns an existing file.
 
     {n} is the lowest number >= start_n that does not clash with an existing
     recording of any format. Without {n} in the pattern a clash appends _2, _3, ...

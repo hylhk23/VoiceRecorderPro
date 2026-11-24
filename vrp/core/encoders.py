@@ -1,8 +1,8 @@
-"""Streaming file writers for WAV, MP3 and FLAC (Section 6).
+"""Streaming file writers for WAV, MP3 and FLAC.
 
 All writers keep the file playable while recording: WAV headers are rewritten
-at every flush (FR-REC-004), MP3 is written frame by frame with an Info/Xing
-frame finished on close (FR-REC-005), FLAC is synced through libsndfile.
+at every flush, MP3 is written frame by frame with an Info/Xing
+frame finished on close, FLAC is synced through libsndfile.
 """
 from __future__ import annotations
 

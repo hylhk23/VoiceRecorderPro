@@ -1,4 +1,4 @@
-"""Copy the licence files of every bundled library into <dist>/licenses (Section 20.2)."""
+"""Copy the licence files of every bundled library into <dist>/licenses."""
 import shutil
 import sys
 from importlib import metadata

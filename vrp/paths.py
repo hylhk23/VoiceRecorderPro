@@ -1,4 +1,4 @@
-"""Locations of settings, logs and recordings (FR-CFG-001, FR-CFG-007, FR-FILE-001)."""
+"""Locations of settings, logs and recordings."""
 from __future__ import annotations
 
 import os
@@ -102,7 +102,7 @@ def default_fallback_dir() -> Path:
 
 
 def longpath(path: str | os.PathLike) -> str:
-    """Return a path usable beyond 260 characters on Windows (FR-FILE-012)."""
+    """Return a path usable beyond 260 characters on Windows."""
     s = os.fspath(path)
     if IS_WINDOWS and len(s) >= 240 and not s.startswith("\\\\?\\"):
         s = os.path.abspath(s)

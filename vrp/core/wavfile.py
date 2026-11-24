@@ -1,4 +1,4 @@
-"""WAV (RIFF) header, cue points and LIST chunks (Section 8.2).
+"""WAV (RIFF) header, cue points and LIST chunks.
 
 Segments are stored as a 'cue ' chunk with one cue point per segment and a
 'LIST'/'adtl' chunk with a 'labl' per cue. File details go into 'LIST'/'INFO'.

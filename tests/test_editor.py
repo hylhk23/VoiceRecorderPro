@@ -22,7 +22,7 @@ def make(path, codec, seconds, segs=None, **kw):
     return x
 
 
-def test_tc07_wav_extract_fast_and_exact(tmp_path):                       # TC-07, FR-EDIT-004
+def test_wav_extract_fast_and_exact(tmp_path):
     src = tmp_path / "hour.wav"
     x = make(src, "wav", 3600)
     m = probe(str(src))
@@ -35,7 +35,7 @@ def test_tc07_wav_extract_fast_and_exact(tmp_path):                       # TC-0
     assert np.array_equal(y, ref)
 
 
-def test_tc08_mp3_extract_copies_frames(tmp_path):                        # TC-08
+def test_mp3_extract_copies_frames(tmp_path):
     src = tmp_path / "a.mp3"
     make(src, "mp3", 60, mp3_kbps=64)
     m = probe(str(src))
@@ -49,7 +49,7 @@ def test_tc08_mp3_extract_copies_frames(tmp_path):                        # TC-0
     assert abs(out.duration - 30) < 0.2
 
 
-def test_tc09_cancel_leaves_original(tmp_path):                          # TC-09, FR-EDIT-005
+def test_cancel_leaves_original(tmp_path):
     src = tmp_path / "c.wav"
     make(src, "wav", 120)
     before = src.read_bytes()
@@ -75,7 +75,7 @@ def test_delete_and_undo(tmp_path):
     assert probe(str(src)).frames == 20 * RATE
 
 
-def test_segments_inside_deleted_range_are_removed(tmp_path):            # FR-EDIT-007
+def test_segments_inside_deleted_range_are_removed(tmp_path):
     src = tmp_path / "e.wav"
     make(src, "wav", 20, [Segment(0), Segment(5 * RATE), Segment(6 * RATE), Segment(12 * RATE)])
     m = editor.delete_range(probe(str(src)), 4 * RATE, 7 * RATE)
@@ -92,7 +92,7 @@ def test_split_join_roundtrip(tmp_path):
     assert np.array_equal(a, b)
 
 
-def test_join_mixed_formats_needs_convert(tmp_path):                     # FR-EDIT-008
+def test_join_mixed_formats_needs_convert(tmp_path):
     a, b = tmp_path / "a.wav", tmp_path / "b.mp3"
     make(a, "wav", 2)
     make(b, "mp3", 2)

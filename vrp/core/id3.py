@@ -1,7 +1,6 @@
-"""Minimal in-house ID3v2.4 writer/reader with CHAP/CTOC chapters (Section 8.2).
+"""Minimal in-house ID3v2.4 writer/reader with CHAP/CTOC chapters.
 
-Written in-house so the app does not depend on GPL-licensed tag libraries
-(Section 20.2).
+Written in-house so the app does not depend on GPL-licensed tag libraries.
 """
 from __future__ import annotations
 

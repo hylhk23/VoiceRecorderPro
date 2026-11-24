@@ -1,4 +1,4 @@
-"""The application engine: one state machine every input talks to (Section 4.3, 19).
+"""The application engine: one state machine every input talks to.
 
 Buttons, menus, hot-keys, external devices, the command line and the
 scheduler all call Engine.do(action, pressed). The engine owns the recorder
@@ -32,7 +32,7 @@ from vrp.core.recorder import ARMED as R_ARMED
 from vrp.core.recorder import PAUSED as R_PAUSED
 from vrp.core.recorder import RECORDING as R_RECORDING
 from vrp.core.recorder import RecConfig, Recorder, open_error_message
-from vrp.settings import Settings
+from vrp.settings import DEFAULT_FILE_PATTERN, Settings
 
 log = logging.getLogger(__name__)
 
@@ -121,7 +121,7 @@ class Engine(QObject):
         self.disk_label = ""
         self.disk_seconds_left: float | None = None
         self._disk_blocked = False
-        # notifications throttle (FR-ERR-023)
+        # notifications throttle
         self._notified: dict[str, float] = {}
         # timers
         self._timer = QTimer(self)
@@ -314,7 +314,7 @@ class Engine(QObject):
         os.makedirs(folder, exist_ok=True)
         pattern = self._overrides.get("pattern") or self.settings.get("rec.pattern")
         if naming.validate_pattern(pattern):
-            pattern = "{Mon}{dd}_{n}"
+            pattern = DEFAULT_FILE_PATTERN
         rec = self.recorder
         dev = rec.device.name if (rec.mic_open and rec.device) else ("Computer audio" if rec.system_open else "")
         p = naming.next_path(folder, pattern, self.recorder.cfg.fmt.ext, host=winutil.computer_name(),
@@ -637,7 +637,7 @@ class Engine(QObject):
         sel = self.selection
         pos = self.position
         if st == State.PLAY_PAUSED:
-            back = int(self.settings.get("play.backspace_s") * self.file.rate)   # FR-PLAY-004
+            back = int(self.settings.get("play.backspace_s") * self.file.rate)
             pos = max(sel[0] if sel else 0, pos - back)
         elif sel and not (sel[0] <= pos < sel[1]):
             pos = sel[0]
@@ -778,7 +778,7 @@ class Engine(QObject):
 
     # ================================================================ selection
     def _snap(self, frame: int) -> int:
-        """MP3 marks snap to frame boundaries (FR-EDIT-003)."""
+        """MP3 marks snap to frame boundaries."""
         if self.file is None:
             return frame
         frame = int(max(0, min(self.file.frames, frame)))
@@ -1212,7 +1212,7 @@ class Engine(QObject):
                 self._handle_event(ev)
 
     def _after_command(self, path: str, frames: int, segs) -> None:
-        """FR-CLI-005: run the user's command for each finalised file."""
+        """Run the user's command for each finalised file."""
         cmd = (self.settings.get("rec.after_command") or "").strip()
         if not cmd:
             return
@@ -1250,7 +1250,8 @@ class Engine(QObject):
             levels = rec.mix_levels                 # what is being recorded
             peak = float(levels.max()) if levels.size else 0.0
             mic_live = rec.mic_open
-            if not mic_live or (rec.levels.size and float(rec.levels.max()) > 1e-5):
+            # the input level, before noise suppression: a quiet room is not a muted microphone
+            if not mic_live or (rec.in_levels.size and float(rec.in_levels.max()) > 1e-5):
                 self._last_signal = now             # "no signal" is about the microphone only
             thr = self.settings.get("vox.threshold") / 100.0
             if peak > thr:
@@ -1354,7 +1355,7 @@ class Engine(QObject):
                                f"{d.entry.name} was skipped because a recording is in progress.", 1)
                 continue
             self._start_schedule(d)
-        # open the device 10 s early (FR-SCHED-003)
+        # open the device 10 s early
         if not self.capturing and not self.recorder.input_open:
             if scheduler.upcoming(entries, now, 10):
                 self.monitor(True)
@@ -1413,7 +1414,8 @@ class Engine(QObject):
             self._apply_player_settings()
         if "vox.gap_ms" in keys and self.file:
             self.player.set_gap(self.settings.get("vox.gap_ms"), self.file.segment_starts())
-        if self.recorder.input_open and any(k.startswith(("vox.", "fmt.gain", "fmt.highpass",
+        if self.recorder.input_open and any(k.startswith(("vox.", "fmt.gain", "fmt.highpass", "fmt.denoise",
+                                                          "fmt.level", "fmt.keep_original",
                                                           "rec.system_gain_db")) for k in keys):
             rec = self.recorder
             cfg = RecConfig.from_settings(self.settings, rec.cfg.tags.get("device", ""))

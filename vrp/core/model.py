@@ -1,6 +1,8 @@
 """Shared data types: segments, output format and the open-file model."""
 from __future__ import annotations
 
+import os
+
 import bisect
 from dataclasses import dataclass, field, replace
 from datetime import datetime
@@ -25,6 +27,17 @@ CODEC_EXT = {"mp3": ".mp3", "wav": ".wav", "flac": ".flac"}
 LAYOUTS = ("mix", "split")
 SPLIT_ROLES = "L=microphone; R=computer audio"   # tag value that marks a split file
 WAV_ROLES_KEY = "ICHN"                           # LIST INFO field for the roles in WAV files
+WAV_PROCESSING_KEY = "IPRC"                      # 1.0.4: LIST INFO field naming the clean-up applied
+ORIGINAL_SUFFIX = "-original"                    # 1.0.4: untouched copy next to a cleaned recording
+
+
+def original_path(path: str, k: int = 1) -> str:
+    """Name of the untouched copy of `path`: VOX20261123-001.mp3 -> VOX20261123-001-original.mp3.
+
+    k > 1 gives -original-2, -original-3, ... when the plain name is already taken.
+    """
+    stem, ext = os.path.splitext(str(path))
+    return f"{stem}{ORIGINAL_SUFFIX}{'' if k <= 1 else f'-{k}'}{ext}"
 
 
 def mp3_kbps_choices(rate: int) -> tuple[int, ...]:
@@ -178,7 +191,7 @@ class FileModel:
         return max(0, bisect.bisect_right(starts, frame) - 1)
 
     def sample_text(self) -> str:
-        """'16 kHz ST', '44.1 kHz 16b MO' (FR-UI-007 Sample field)."""
+        """'16 kHz ST', '44.1 kHz 16b MO' (Sample field)."""
         rate = fmt_rate(self.rate)
         mo = "L/R" if self.layout == "split" else "ST" if self.channels >= 2 else "MO"
         bits = ""
@@ -197,7 +210,7 @@ def fmt_rate(rate: int) -> str:
 
 
 def fmt_duration(seconds: float) -> str:
-    """m:ss under an hour, h:mm:ss above (FR-UI-007)."""
+    """m:ss under an hour, h:mm:ss above."""
     s = int(max(0, seconds))
     h, rem = divmod(s, 3600)
     m, sec = divmod(rem, 60)
@@ -212,7 +225,7 @@ def fmt_time_precise(seconds: float) -> str:
 
 
 def fmt_size(nbytes: int) -> str:
-    """KB under 1 MB, MB to three decimals under 1 GB, then GB (FR-UI-007)."""
+    """KB under 1 MB, MB to three decimals under 1 GB, then GB."""
     if nbytes < 1024 * 1024:
         return f"{nbytes / 1024:.0f}KB"
     if nbytes < 1024 ** 3:

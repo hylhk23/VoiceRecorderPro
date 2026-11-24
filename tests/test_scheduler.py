@@ -16,7 +16,7 @@ def test_monthly_on_31st_uses_last_day():
     assert occ == [datetime(2026, 2, 28, 8, 0)]
 
 
-def test_overlap_detected():                                                         # FR-SCHED-004
+def test_overlap_detected():
     a = Entry(name="A", start="2026-10-21T09:00", duration_s=3600, repeat="weekdays")
     b = Entry(name="B", start="2026-10-24T09:30", duration_s=600, repeat="weekly", days=[4])  # Fridays
     assert scheduler.find_overlap([a], b, now=datetime(2026, 10, 20)).name == "A"
@@ -24,7 +24,7 @@ def test_overlap_detected():                                                    
     assert scheduler.find_overlap([a], c, now=datetime(2026, 10, 20)) is None
 
 
-def test_tc15_late_start_and_missed():                                               # TC-15, FR-SCHED-006
+def test_late_start_and_missed():
     e = Entry(name="Morning", start="2026-10-20T10:00", duration_s=1800)
     start, missed = scheduler.check([e], datetime(2026, 10, 20, 10, 3), set(), 5)
     assert len(start) == 1 and abs(start[0].late_s - 180) < 1

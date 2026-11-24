@@ -1,4 +1,4 @@
-"""Single instance and local control channel (FR-CLI-001).
+"""Single instance and local control channel.
 
 A Qt local server (a named pipe on Windows) per user; never a network socket.
 Requests and replies are one line of JSON each.

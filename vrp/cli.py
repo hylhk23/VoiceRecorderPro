@@ -1,4 +1,4 @@
-"""Command line (Section 16).
+"""Command line.
 
     vrp                         start the GUI (or bring the running one to the front)
     vrp record [options]        start recording in the running instance (starting it if needed)

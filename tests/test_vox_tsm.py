@@ -25,14 +25,14 @@ def run_gate(spans, total, block, params=VoxParams(4, 20, 20, 2.0, 300, 0.5)):
 
 
 @pytest.mark.parametrize("block", [256, 1024, 777, 4096])
-def test_tc02_two_segments(block):                                    # TC-02
+def test_two_segments(block):
     segs = run_gate([(2, 5, 0.2), (10, 11, 0.2)], 14, block)
     assert len(segs) == 2
     assert abs(segs[0] - 5.3) < 0.025 and abs(segs[1] - 3.3) < 0.025
 
 
 @pytest.mark.parametrize("block", [1024, 777])
-def test_tc03_click_dropped(block):                                   # TC-03, FR-VOX-006
+def test_click_dropped(block):
     segs = run_gate([(2, 5, 0.2), (7.5, 7.7, 0.5), (10, 11, 0.2)], 14, block)
     assert len(segs) == 2 and abs(segs[0] - 5.3) < 0.025
 

@@ -1,8 +1,8 @@
-"""Settings schema, defaults, validation and persistence (Section 15).
+"""Settings schema, defaults, validation and persistence.
 
 Settings are a flat dict of dotted keys stored as UTF-8 JSON in settings.json.
-Writes are atomic and keep settings.json.bak (FR-CFG-002). Invalid files are
-renamed and replaced by defaults or the backup (FR-CFG-003).
+Writes are atomic and keep settings.json.bak. Invalid files are
+renamed and replaced by defaults or the backup.
 """
 from __future__ import annotations
 
@@ -22,6 +22,14 @@ log = logging.getLogger(__name__)
 
 SCHEMA_VERSION = 1
 
+# File-name pattern for new recordings. 1.0.4: VOX + date + three-digit
+# number, e.g. VOX20261123-001.mp3. Up to 1.0.3 the default was {Mon}{dd}_{n} (Oct02_1.mp3).
+DEFAULT_FILE_PATTERN = "VOX{yyyy}{mm}{dd}-{n3}"
+OLD_DEFAULT_FILE_PATTERN = "{Mon}{dd}_{n}"
+# One-off changes applied to settings files written by older versions.
+# The revision is a private key, so older versions simply ignore it (unknown keys pass through).
+SETTINGS_REV = 1
+
 
 @dataclass
 class Spec:
@@ -36,7 +44,7 @@ def S(default, kind=None, lo=None, hi=None, choices=None) -> Spec:
     return Spec(default, kind or type(default), lo, hi, tuple(choices) if choices else None)
 
 
-# Hot-key actions and their default global bindings (Section 11.1).
+# Hot-key actions and their default global bindings.
 HOTKEY_ACTIONS: list[tuple[str, str, str]] = [
     # action id, label, default binding
     ("record", "Record / Pause recording", "Ctrl+Alt+R"),
@@ -93,10 +101,11 @@ SCHEMA: dict[str, Spec] = {
     "general.recent_files": S([], list),
     "general.window_geometry": S(""),
     "general.last_open_dir": S(""),
+    "general.settings_rev": S(SETTINGS_REV, int, 0, 1000),
     # Recording
     "rec.folder": S(""),
     "rec.fallback_folder": S(""),
-    "rec.pattern": S("{Mon}{dd}_{n}"),
+    "rec.pattern": S(DEFAULT_FILE_PATTERN),
     "rec.tag": S(""),
     "rec.comment": S(""),
     "rec.open_file_action": S("append", choices=["append", "new", "ask"]),
@@ -132,6 +141,10 @@ SCHEMA: dict[str, Spec] = {
     "fmt.mp3.vbr_q": S(5, int, 0, 9),
     "fmt.gain_db": S(0, int, -20, 20),
     "fmt.highpass": S(False),
+    # Clean-up of the microphone (1.0.4)
+    "fmt.denoise": S(False),            # noise suppression (RNNoise)
+    "fmt.level": S(False),              # automatic level
+    "fmt.keep_original": S(True),       # also keep an untouched copy while cleaning
     # Vox
     "vox.enabled": S(True),
     "vox.threshold": S(4, int, 0, 100),
@@ -197,7 +210,7 @@ TAB_PREFIXES = {
 
 # Keys never touched by "Restore defaults" or export/import.
 PRIVATE_KEYS = {"general.first_run_done", "general.recent_files", "general.window_geometry",
-                "general.last_open_dir", "rec.network_warned"}
+                "general.last_open_dir", "rec.network_warned", "general.settings_rev"}
 
 
 def defaults() -> dict:
@@ -330,6 +343,9 @@ class Settings:
             log.warning("settings values clamped or reset: %s", ", ".join(sorted(clamped)))
             self.load_messages.append(
                 "Some settings were out of range and were corrected: " + ", ".join(sorted(clamped)))
+        rev = obj["settings"].get("general.settings_rev", 0)
+        if not isinstance(rev, int) or rev < SETTINGS_REV:
+            self._migrate(data, rev if isinstance(rev, int) else 0)
         if ver > SCHEMA_VERSION:
             self.read_only = True
             self.load_messages.append(
@@ -337,6 +353,17 @@ class Settings:
                 "read-only; changes will not be saved.")
         with self._lock:
             self._data = data
+
+    @staticmethod
+    def _migrate(data: dict, rev: int) -> None:
+        """Bring settings written by an older version up to date."""
+        if rev < 1:
+            # 1.0.4: new default file name. Only a pattern still at the old default changes;
+            # a pattern the user chose is kept.
+            if data.get("rec.pattern") == OLD_DEFAULT_FILE_PATTERN:
+                data["rec.pattern"] = DEFAULT_FILE_PATTERN
+                log.info("file-name pattern changed to the new default %s", DEFAULT_FILE_PATTERN)
+        data["general.settings_rev"] = SETTINGS_REV
 
     def load(self) -> None:
         self.load_messages.clear()
@@ -430,7 +457,7 @@ class Settings:
         self.set("general.recent_files", recent[:10])
 
     def recent_files(self) -> list[str]:
-        """Recent files that still exist (FR-FILE-009)."""
+        """Recent files that still exist."""
         recent = self.get("general.recent_files")
         alive = [p for p in recent if os.path.exists(p)]
         if alive != recent:

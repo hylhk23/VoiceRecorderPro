@@ -5,13 +5,16 @@
 <p>
   <a href="https://github.com/hylhk23/VoiceRecorderPro/releases/latest"><img src="https://img.shields.io/github/v/release/hylhk23/VoiceRecorderPro?style=flat-square&label=version" alt="Latest version"></a>
   <img src="https://img.shields.io/badge/Windows%2011-64--bit-0078D4?style=flat-square" alt="Windows 11, 64-bit">
-  <img src="https://img.shields.io/badge/price-free-2ea44f?style=flat-square" alt="Free">
+  <a href="#licence-free-for-personal-use-licence-for-work"><img src="https://img.shields.io/badge/personal%20use-free-1a7f37?style=flat-square" alt="Free for personal use"></a>
+  <a href="#licence-free-for-personal-use-licence-for-work"><img src="https://img.shields.io/badge/use%20at%20work-licence%20required-555555?style=flat-square" alt="Use at work: commercial licence required"></a>
   <a href="https://buymeacoffee.com/flyingturtle"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black" alt="Buy me a coffee"></a>
 </p>
 
-A voice-activated recorder for Windows 11 that captures your microphone **and** your computer's sound, so you can record Zoom and Microsoft Teams meetings for minutes. Keep both sides mixed in one track, or on separate left and right channels so transcription software can tell your voice from the other participants. Portable: unzip and run, no installation and no admin rights.
+A voice-activated recorder for Windows 11 that captures your microphone **and** your computer's sound, so you can record Zoom and Microsoft Teams meetings for minutes. Keep both sides mixed in one track, or on separate left and right channels so transcription software can tell your voice from the other participants. New in 1.0.4: noise suppression and an automatic level for a clearer voice in a noisy office. Portable: unzip and run, no installation and no admin rights.
 
-**[Download the latest version](https://github.com/hylhk23/VoiceRecorderPro/releases/latest)** · Windows 11, 64-bit · Free
+**Free for personal use. Use at work needs a commercial licence** ([details](#licence-free-for-personal-use-licence-for-work)).
+
+**[Download the latest version](https://github.com/hylhk23/VoiceRecorderPro/releases/latest)** · Windows 11, 64-bit
 
 <p align="center">
   <img src="docs/images/main-window.png" alt="Voice Recorder Pro recording: Mic and Computer sources both active on the level meters, Vox threshold slider and transport buttons" width="600">
@@ -25,35 +28,40 @@ Voice Recorder Pro sits quietly in the system tray and records the conversations
 | --- | --- |
 | **Mic + computer audio in one file** | Both sides of a Zoom, Teams or Webex call, mixed into a single recording |
 | **Or on separate channels** | Your voice on the left, the other participants on the right, so transcription software can tell the two sides apart |
+| **Clearer voice in a noisy room** | Optional noise suppression and automatic level, with an untouched copy kept beside the cleaned file (new in 1.0.4) |
 | **Voice-activated** | Records only when sound is above your threshold, so long silences are not recorded |
 | **Portable** | Unzip and run `run.bat`. No installer, no admin rights |
 | **Small, transcription-ready files** | MP3 at 16 kHz mono, about 14 MB per hour |
 | **Time-stamped segments** | Jump straight to any part of the discussion |
 | **Private** | No account, no cloud, no internet connection |
 
-> **Free, with no ads, no account and no subscription.** If Voice Recorder Pro saves you an hour of note-taking, consider buying me a coffee. It keeps the project going.
+> **Free for personal use, with no ads, no account and no subscription.** If Voice Recorder Pro saves you an hour of note-taking at home, consider buying me a coffee.
+>
+> **Using it at work?** Use by or for a business or other organization needs a commercial licence, one per person. Buy it at [software.4u.hk](https://software.4u.hk) and you receive a licence file to put in the program folder. See [Licence](#licence-free-for-personal-use-licence-for-work).
 >
 > <a href="https://buymeacoffee.com/flyingturtle"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="45"></a>
 
 ---
 
-## What's new in 1.0.3
+## What's new in 1.0.4
 
-**Separate channels for meetings.** Choose **Options > Format > Channels > Separate: microphone left, computer audio right**. Your voice goes on the left channel and the other participants on the right, in one stereo file. Speech-to-text software can then transcribe each side on its own, which makes it easier to see who said what.
+**Clearer recordings in a noisy office.** Open **Options > Format > Clean-up (microphone)**. Both options are off until you turn them on.
 
-<p align="center">
-  <img src="docs/images/options-format-separate.png" alt="Options dialog, Format tab: Channels set to Separate: microphone left, computer audio right, MP3 at 64 kbit/s, with a note to use a headset" width="700">
-</p>
+- **Noise suppression** removes steady background noise such as air conditioning, fans and computer hum, using the open-source RNNoise library. It helps much less with other people talking nearby, and it cannot bring back words the microphone did not pick up.
+- **Automatic level** brings near and far voices to a similar loudness. It raises a quiet voice by up to 24 dB, lowers a voice that is very close to the microphone, holds its setting during pauses so background noise is not pumped up, and keeps peaks below clipping.
+- **Also keep an untouched copy** (on by default when clean-up is used) saves a second file beside the recording, for example `VOX20261124-001-original.mp3`, with the sound exactly as it came in. The two files line up sample for sample, so you can compare them or go back to the original.
+- Voice activation listens after noise suppression, so a humming air conditioner no longer starts a recording. The file's tags say which clean-up was applied.
+- Clean-up applies to the microphone only, from the next recording. Noise suppression delays the recording by about 0.2 seconds; computer audio is delayed with it, so the two stay in step.
 
-- Use a headset. With speakers, the call is also picked up by your microphone and appears on both channels.
-- For MP3, the bitrate is raised to 64 kbit/s when you choose Separate, because the two channels share it. You can change it.
-- The main window shows **L/R** in the Sample field, and the file records which channel is which in its tags.
-- Unticking Mic or Computer while recording leaves that side silent; the file stays stereo.
-- Command line: `vrp record --layout split`.
-- Mixed recording stays the default. Nothing changes unless you choose Separate.
-- Fixed: recovering a FLAC recording after a crash or power cut could lose the last few seconds. It now keeps everything that can be read.
+**New default file names.** Recordings are now named by date and number, for example `VOX20261124-001.mp3`, and the number starts again at 001 each day. If you never changed the file-name pattern, it changes to the new default; a pattern you set yourself is kept.
 
-Full list of changes: [release notes](https://github.com/hylhk23/VoiceRecorderPro/releases/tag/v1.0.3).
+**Licence shown in Help.** **Help > Licence** and **Help > About** show who your copy is licensed to. Without a licence file they show "Unregistered copy – free for personal use". The licence file is checked on your PC only; nothing is sent anywhere.
+
+**Licence terms.** From 1.0.4, Voice Recorder Pro stays free for personal use, and use at work needs a commercial licence. Versions 1.0.3 and earlier remain available under the licence they were released with.
+
+**Fixed:** the About box could cut off its last lines of text.
+
+Full list of changes: [release notes](https://github.com/hylhk23/VoiceRecorderPro/releases/tag/v1.0.4). Version 1.0.3 added separate channels: [1.0.3 release notes](https://github.com/hylhk23/VoiceRecorderPro/releases/tag/v1.0.3).
 
 ---
 
@@ -63,6 +71,13 @@ Full list of changes: [release notes](https://github.com/hylhk23/VoiceRecorderPr
 Voice Recorder Pro records the **microphone** (your voice) and **computer audio** (everything played through your speakers or headset: the other participants in Zoom, Teams, Webex or a phone app) into one file. Each source has its own level meter and tick box, and you can switch either on or off at any time, even mid-recording. The result is a single recording of the whole conversation, ready for writing minutes.
 
 To keep the two apart, choose **Options > Format > Channels > Separate**. You get a stereo file, with your microphone on the left and the computer audio on the right. Speech-to-text software can then transcribe each side on its own, which makes it easier to see who said what. Use a headset, so the call is not also picked up by your microphone.
+
+<p align="center">
+  <img src="docs/images/options-format-separate.png" alt="Options dialog, Format tab: Channels set to Separate: microphone left, computer audio right, MP3 at 64 kbit/s, with a note to use a headset" width="700">
+</p>
+
+### Clearer voice with background noise or a distant speaker
+In an open-plan office or a meeting room, turn on **noise suppression** to take out steady noise such as air conditioning and fans, and **automatic level** so a colleague at the far end of the table comes out about as loud as the person next to the microphone. An untouched copy is kept beside each cleaned recording, so nothing is lost if you prefer the original. The best results still come from the microphone itself: put it close to the people speaking.
 
 ### Records only when someone is speaking
 Voice activation (Vox) starts recording when sound rises above a threshold you set and pauses when the room goes quiet (after a short hang time, 2 seconds by default, so pauses between sentences are kept). Long silences never reach the file, so:
@@ -84,8 +99,8 @@ It is a portable application. Copy the folder to any location you can write to (
 ### Unlikely to trigger antivirus false alarms
 Python programs packed into an `.exe` with tools such as PyInstaller are sometimes flagged by antivirus engines. Voice Recorder Pro avoids that packing:
 - the package contains only **two `.exe` files**: `python.exe` and `pythonw.exe`, the official Python 3.13 interpreter from python.org, **digitally signed by the Python Software Foundation**;
-- everything else is plain Python source code (`.py`), which you can read, and standard library files (`.pyd`, `.dll`) from python.org and the Python Package Index;
-- it makes no internet connections. Recordings and settings stay on your PC.
+- everything else is plain Python source code (`.py`), which you can read, library files (`.pyd`, `.dll`) from python.org and the Python Package Index, and the RNNoise noise-suppression library (`vrp\lib\rnnoise.dll`), built from the official RNNoise 0.2 source code;
+- it makes no internet connections. Recordings, settings and your licence file stay on your PC.
 
 ### Other useful features
 - Hot-keys that work from any app (default: `Ctrl+Alt+R` record/pause, `Ctrl+Alt+S` stop).
@@ -100,7 +115,7 @@ Python programs packed into an `.exe` with tools such as PyInstaller are sometim
 
 ## Install
 
-You need Windows 11 (64-bit). The download is a zip file of about 49 MB (125 MB once extracted).
+You need Windows 11 (64-bit). The download is a zip file of about 50 MB (127 MB once extracted).
 
 ### Option 1: manual download
 
@@ -131,11 +146,14 @@ To add the Desktop and Start-menu shortcuts from the command line: `VoiceRecorde
 certutil -hashfile VoiceRecorderPro-portable-win64.zip SHA256
 ```
 
+### Add your licence (use at work)
+After you buy a commercial licence, you receive a licence file ending in `.key`. Copy it into the `VoiceRecorderPro` folder (the folder with `run.bat`), then open **Help > Licence** and choose **Check Again**, or restart the app. **Help > Licence** and **Help > About** then show your name.
+
 ### Update to a new version
-Download the new zip in the same way, close Voice Recorder Pro (right-click the tray icon, **Exit**), and replace the `VoiceRecorderPro` folder with the new one. Your recordings and settings are stored outside the program folder and are kept.
+Close Voice Recorder Pro (right-click the tray icon, **Exit**), download the new zip in the same way, and extract it over the old `VoiceRecorderPro` folder, choosing **Replace** for the files that already exist. Your recordings and settings are stored outside the program folder and are kept. If you have a licence file, it stays in the folder; if you install into a new folder instead, copy your `.key` file into it.
 
 ### Remove
-Close the app, run `create-shortcut.bat /remove` if you created shortcuts, then delete the `VoiceRecorderPro` folder. Settings are in `%APPDATA%\VoiceRecorderPro` and logs in `%LOCALAPPDATA%\VoiceRecorderPro`; delete those too if you want to remove everything.
+Close the app, run `create-shortcut.bat /remove` if you created shortcuts, then delete the `VoiceRecorderPro` folder. Settings are in `%APPDATA%\VoiceRecorderPro` and logs in `%LOCALAPPDATA%\VoiceRecorderPro`; delete those too if you want to remove everything. Keep a copy of your licence file if you may need it again.
 
 ---
 
@@ -147,7 +165,9 @@ Close the app, run `create-shortcut.bat /remove` if you created shortcuts, then 
 4. Press **Record** (red button, or `Ctrl+Alt+R` from any app), then join the meeting.
 5. Press **Stop** (`Ctrl+Alt+S`) when the meeting ends.
 
-Optional: for transcripts that separate your voice from the other participants, choose **Options > Format > Channels > Separate: microphone left, computer audio right** before you record, and wear a headset.
+Optional, before you record:
+- for transcripts that separate your voice from the other participants, choose **Options > Format > Channels > Separate: microphone left, computer audio right**, and wear a headset;
+- in a noisy room, or with people sitting far from the microphone, turn on **Options > Format > Clean-up (microphone) > Noise suppression** and **Automatic level**.
 
 Recordings are saved to **`Documents\VRP Recordings`** (change this in **Options > Recording**). Open the MP3 in your transcription software to produce the text for your minutes.
 
@@ -166,6 +186,8 @@ Full help: press **F1** in the app, or open [`docs/HELP.html`](docs/HELP.html).
 | Your organization blocks programs in your user folders | Some IT policies only allow programs in approved locations. Ask your IT team. |
 | Microphone meter stays empty | Windows **Settings > Privacy & security > Microphone**: allow desktop apps to use the microphone. |
 | Computer meter stays empty | Make sure sound is playing on the Windows default output device (see the tip above). |
+| Noise suppression cannot be ticked | The noise-suppression library `vrp\lib\rnnoise.dll` is missing or could not be loaded. Download the portable zip again, unblock it (Option 1, step 2) and extract it again. |
+| **Help > Licence** says your licence file is not accepted | It says why. Use the `.key` file exactly as you received it, without editing it, and put it in the folder with `run.bat`. Then choose **Check Again**. |
 
 ---
 
@@ -185,7 +207,7 @@ Without the `python` folder, `run.bat` needs Python 3.12 or 3.13 (64-bit) from p
 
 ## Support the project
 
-Voice Recorder Pro is built and maintained by one developer in spare time, and it will stay free: no ads, no account, no data collection. If it saves you time on meeting minutes, a coffee is a simple way to say thanks and helps pay for the time that goes into new features and fixes.
+Voice Recorder Pro is built and maintained by one developer in spare time. It stays free for personal use: no ads, no account, no data collection. If it saves you time at home, a coffee is a simple way to say thanks and helps pay for the time that goes into new features and fixes. If you use it at work, please buy a commercial licence at [software.4u.hk](https://software.4u.hk).
 
 <p align="center">
   <a href="https://buymeacoffee.com/flyingturtle"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee at buymeacoffee.com/flyingturtle" height="60"></a>
@@ -198,6 +220,12 @@ Voice Recorder Pro is built and maintained by one developer in spare time, and i
 - Share it with colleagues who write meeting minutes.
 - Report a problem or suggest a feature under **Issues**.
 
-## Licence
+## Licence: free for personal use, licence for work
 
-Copyright © 2026 Neo Time Consulting. Free to download and use; see [LICENSE](LICENSE). Bundled third-party libraries keep their own licences; see [THIRD-PARTY-LICENSES.txt](THIRD-PARTY-LICENSES.txt).
+Copyright © 2026 Neo Time Consulting. All rights reserved.
+
+- **Personal use is free.** Anyone may download and use Voice Recorder Pro for personal, non-commercial purposes, and share the unmodified release zip from this page, free of charge.
+- **Use at work needs a commercial licence.** Use by or for a business or other organization, or for any commercial purpose, needs a commercial licence from Neo Time Consulting: buy it at [software.4u.hk](https://software.4u.hk). One licence covers one named person. You receive a licence file (`.key`) for that person; don't pass it on to anyone else. See [Add your licence](#add-your-licence-use-at-work).
+- Versions 1.0.3 and earlier remain available under the licence they were released with.
+
+Full terms: [LICENSE](LICENSE). Bundled third-party libraries keep their own licences; see [THIRD-PARTY-LICENSES.txt](THIRD-PARTY-LICENSES.txt).

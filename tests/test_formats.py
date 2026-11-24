@@ -47,7 +47,7 @@ def test_wav_subtypes_readable_and_tagged(tmp_path):
         assert m.segments[0].timestamp == "2026-10-02T14:03:21.250-07:00"
 
 
-def test_wav_header_valid_while_recording(tmp_path):                # FR-REC-004
+def test_wav_header_valid_while_recording(tmp_path):
     p = tmp_path / "live.wav"
     w = encoders.create_writer(str(p), FormatSpec("wav", RATE, 1))
     w.write(tone(1.0))

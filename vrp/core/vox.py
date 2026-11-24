@@ -1,4 +1,4 @@
-"""Voice-operated switch (Section 7).
+"""Voice-operated switch.
 
 The gate turns a continuous stream of blocks into write operations:
 
@@ -7,8 +7,8 @@ The gate turns a continuous stream of blocks into write operations:
     ("end", None)             the segment ended
 
 A segment is only committed once its sound has lasted the minimum segment
-length; shorter bursts (clicks) are dropped with their pre-roll and hang time
-(FR-VOX-006). Times are counted in samples so results do not depend on block
+length; shorter bursts (clicks) are dropped with their pre-roll and hang time.
+Times are counted in samples so results do not depend on block
 size.
 """
 from __future__ import annotations

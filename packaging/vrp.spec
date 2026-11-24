@@ -1,7 +1,7 @@
 # PyInstaller spec: one folder, two programs sharing the same libraries.
 #   VoiceRecorderPro.exe  windowed GUI
 #   vrp.exe               console command line (same code, prints to the console)
-# One-folder mode starts faster and keeps LGPL libraries as replaceable files (Section 20).
+# One-folder mode starts faster and keeps LGPL libraries as replaceable files.
 import os
 
 from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
@@ -17,6 +17,8 @@ datas = [
 datas += collect_data_files("soundfile")       # _soundfile_data: libsndfile DLL (with MP3 support)
 datas += collect_data_files("sounddevice")     # _sounddevice_data: PortAudio DLL
 binaries = collect_dynamic_libs("soxr") + collect_dynamic_libs("hid")
+binaries += [(os.path.join(ROOT, "vrp", "lib", "rnnoise.dll"), "vrp/lib")]   # 1.0.4: noise suppression
+datas += [(os.path.join(ROOT, "vrp", "lib", "RNNOISE-COPYING.txt"), "vrp/lib")]
 
 a = Analysis(
     [os.path.join(ROOT, "packaging", "launcher.py")],

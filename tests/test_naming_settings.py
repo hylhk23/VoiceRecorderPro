@@ -10,7 +10,7 @@ def test_default_pattern_matches_reference(tmp_path):
     assert naming.next_path(tmp_path, "{Mon}{dd}_{n}", ".mp3", when).name == "Oct02_1.mp3"
 
 
-def test_never_overwrites_any_format(tmp_path):                    # TC-04, FR-FILE-002
+def test_never_overwrites_any_format(tmp_path):
     when = datetime(2026, 10, 2)
     for i in (1, 2, 3):
         (tmp_path / f"Oct02_{i}.wav").write_bytes(b"x")
@@ -46,7 +46,7 @@ def test_settings_roundtrip_and_backup(isolated_config):
     assert (isolated_config / "settings.json.bak").exists()
 
 
-def test_invalid_settings_file_is_renamed(isolated_config):         # FR-CFG-003
+def test_invalid_settings_file_is_renamed(isolated_config):
     (isolated_config / "settings.json").write_text("{ not json", encoding="utf-8")
     s = Settings()
     s.load()
@@ -55,7 +55,7 @@ def test_invalid_settings_file_is_renamed(isolated_config):         # FR-CFG-003
     assert s.load_messages
 
 
-def test_out_of_range_values_are_clamped(isolated_config):         # FR-CFG-008
+def test_out_of_range_values_are_clamped(isolated_config):
     data = {"schema_version": 1, "settings": {"vox.threshold": 500, "fmt.codec": "ogg", "x.unknown": 1}}
     (isolated_config / "settings.json").write_text(json.dumps(data), encoding="utf-8")
     s = Settings()
@@ -65,7 +65,7 @@ def test_out_of_range_values_are_clamped(isolated_config):         # FR-CFG-008
     assert s.get("x.unknown") == 1                                   # unknown keys are kept
 
 
-def test_newer_schema_is_read_only(isolated_config):               # FR-CFG-004
+def test_newer_schema_is_read_only(isolated_config):
     data = {"schema_version": 99, "settings": {"vox.threshold": 9}}
     (isolated_config / "settings.json").write_text(json.dumps(data), encoding="utf-8")
     s = Settings()

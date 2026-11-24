@@ -1,4 +1,4 @@
-"""Streaming WSOLA time-stretch: playback speed 50-200% with pitch preserved (FR-PLAY-006)."""
+"""Streaming WSOLA time-stretch: playback speed 50-200% with pitch preserved."""
 from __future__ import annotations
 
 import numpy as np

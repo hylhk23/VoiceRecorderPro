@@ -1,4 +1,5 @@
 import os
+import re
 
 import pytest
 
@@ -26,14 +27,14 @@ def make_engine(qapp, tmp_path):
         e.shutdown()
 
 
-def test_tc01_record_stop_play(qapp, make_engine):                       # TC-01
+def test_record_stop_play(qapp, make_engine):
     e = make_engine(realtime=4.0)
     e.record()
     assert e.state == State.RECORDING
     pump(qapp, 2.5)                                  # 10 s of audio at 4x
     e.stop()
     assert wait_for(qapp, lambda: e.state == State.STOPPED)
-    assert os.path.basename(e.file.path).endswith("_1.mp3")
+    assert re.fullmatch(r"VOX\d{8}-001\.mp3", os.path.basename(e.file.path))     # 1.0.4 default name
     assert abs(e.file.duration - 10) < 0.6
     e.play_pause()
     assert e.state == State.PLAYING
@@ -60,11 +61,11 @@ def test_pause_resume_makes_segments_and_backspace(qapp, make_engine):
     pump(qapp, 0.05)
     e.play_pause()                                            # pause
     p = e.position
-    e.play_pause()                                            # resume: back 2 s (FR-PLAY-004)
+    e.play_pause()                                            # resume: back 2 s
     assert e.position <= p - 1.9 * e.file.rate
 
 
-def test_append_by_default(qapp, make_engine):                           # FR-FILE-006
+def test_append_by_default(qapp, make_engine):
     e = make_engine(realtime=8.0, **{"fmt.codec": "wav"})
     e.record()
     pump(qapp, 0.3)
@@ -79,7 +80,7 @@ def test_append_by_default(qapp, make_engine):                           # FR-FI
     assert e.file.path == first and e.file.frames > frames and len(e.file.segments) == 2
 
 
-def test_vox_new_file_mode(qapp, make_engine):                           # FR-VOX-009
+def test_vox_new_file_mode(qapp, make_engine):
     src = scripted_source([(0.5, 1.5, 0.3), (3.0, 4.0, 0.3), (5.5, 6.5, 0.3)], total_s=60)
     e = make_engine(source=src, realtime=8.0, **{"vox.enabled": True, "vox.mode": "file", "vox.hang_s": 0.5,
                                                  "fmt.codec": "wav"})
@@ -92,7 +93,7 @@ def test_vox_new_file_mode(qapp, make_engine):                           # FR-VO
     assert len([f for f in files if f.endswith(".wav")]) == 3
 
 
-def test_stop_while_armed_creates_no_file(qapp, make_engine):           # FR-VOX-011
+def test_stop_while_armed_creates_no_file(qapp, make_engine):
     e = make_engine(source=scripted_source([]), realtime=8.0, **{"vox.enabled": True})
     e.record()
     pump(qapp, 0.4)
@@ -101,7 +102,7 @@ def test_stop_while_armed_creates_no_file(qapp, make_engine):           # FR-VOX
     assert not os.path.exists(e.settings.recordings_folder()) or not os.listdir(e.settings.recordings_folder())
 
 
-def test_rollover_loses_no_samples(qapp, make_engine):                  # TC-05, FR-FILE-007
+def test_rollover_loses_no_samples(qapp, make_engine):
     import numpy as np
     import soundfile as sf
 
@@ -123,7 +124,7 @@ def test_rollover_loses_no_samples(qapp, make_engine):                  # TC-05,
     assert np.all(steps == 1), "a sample was lost or repeated at a file boundary"
 
 
-def test_midnight_rollover(qapp, make_engine, monkeypatch):            # TC-05
+def test_midnight_rollover(qapp, make_engine, monkeypatch):
     import datetime as dt
 
     import vrp.core.recorder as rec_mod
@@ -141,7 +142,7 @@ def test_midnight_rollover(qapp, make_engine, monkeypatch):            # TC-05
     assert len(files) == 2
 
 
-def test_tc13_device_lost_and_back(qapp, make_engine):                  # TC-13, FR-DEV-007
+def test_device_lost_and_back(qapp, make_engine):
     src = scripted_source([(0, 100, 0.2)], total_s=1.0)       # the "device" stops after 1 s
     e = make_engine(source=src, realtime=1.0, **{"fmt.codec": "wav"})
     notes = []

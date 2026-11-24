@@ -1,6 +1,6 @@
-"""Scheduled recordings (Section 14): occurrences, overlap checks, due entries.
+"""Scheduled recordings: occurrences, overlap checks, due entries.
 
-Times are local wall-clock times (FR-SCHED-007). An entry whose start falls in
+Times are local wall-clock times. An entry whose start falls in
 the hour skipped by a daylight-saving change starts at the transition; an
 occurrence is run at most once, so a repeated hour does not run it twice.
 """
@@ -112,7 +112,7 @@ def next_occurrence(e: Entry, after: datetime, horizon_days: int = 400) -> datet
 
 def find_overlap(entries: list[Entry], cand: Entry, now: datetime | None = None,
                  days: int = 70) -> Entry | None:
-    """The first enabled entry whose windows overlap cand's (FR-SCHED-004)."""
+    """The first enabled entry whose windows overlap cand's."""
     if not cand.enabled:
         return None
     now = now or datetime.now()

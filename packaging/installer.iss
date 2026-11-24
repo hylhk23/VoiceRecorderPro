@@ -1,8 +1,8 @@
-; Inno Setup 6 script for Voice Recorder Pro (FR-PKG-002, FR-PKG-003)
+; Inno Setup 6 script for Voice Recorder Pro
 ; Build with build.bat, or: "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\installer.iss
 #define AppName "Voice Recorder Pro"
 #ifndef AppVersion
-  #define AppVersion "1.0.3"
+  #define AppVersion "1.0.4"
 #endif
 #define AppExe "VoiceRecorderPro.exe"
 

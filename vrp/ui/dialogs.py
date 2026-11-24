@@ -1,6 +1,7 @@
 """Smaller dialogs: timed recording, schedules, properties, recovery, join, formats, calibration."""
 from __future__ import annotations
 
+import html
 import os
 import time
 from datetime import datetime, timedelta
@@ -13,6 +14,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QDateTim
                                QTimeEdit, QVBoxLayout, QWidget)
 
 from vrp import APP_NAME, BUILD_DATE, PUBLISHER, WEBSITE, __version__
+from vrp import licence as lic_mod
 from vrp.core import scheduler
 from vrp.core.model import (FLAC_RATES, MP3_RATES, WAV_RATES, WAV_SUBTYPES, FileModel, FormatSpec,
                             fmt_duration, fmt_rate, fmt_size, fmt_time_precise, mp3_kbps_choices)
@@ -329,7 +331,7 @@ class ScheduleEntryDialog(QDialog):
 
 
 class ScheduleDialog(QDialog):
-    """Control > Schedule (FR-SCHED-002)."""
+    """Control > Schedule."""
 
     def __init__(self, settings, devices: list[str], parent=None):
         super().__init__(parent)
@@ -483,7 +485,7 @@ class PropertiesDialog(QDialog):
 
 # ====================================================================== recovery
 class RecoveryDialog(QDialog):
-    """Offered at start-up after an unclean exit (FR-REC-006, TC-06)."""
+    """Offered at start-up after an unclean exit."""
 
     def __init__(self, pending, parent=None):
         super().__init__(parent)
@@ -598,7 +600,7 @@ class JoinDialog(QDialog):
 
 # ================================================================== calibration
 class CalibrateDialog(QDialog):
-    """Measure 5 s of background noise and suggest a threshold (FR-VOX-008)."""
+    """Measure 5 s of background noise and suggest a threshold."""
 
     def __init__(self, engine, parent=None):
         super().__init__(parent)
@@ -716,12 +718,24 @@ DISCLAIMER = ("This program comes with ABSOLUTELY NO WARRANTY! It is provided \u
               "including lost, incomplete or damaged recordings. Use it at your own risk.")
 
 
-def about_text(libs: str) -> str:
-    """The About box as one HTML block (name, donation link, details, fine print)."""
+def about_text(libs: str, status=None) -> str:
+    """The About box as one HTML block (name, donation link, licence, details, fine print)."""
     return (f"<h3 style='margin-bottom:2px'>{APP_NAME} {__version__}</h3>"
             f"{about_link_html()}"
+            f"{licence_html(status)}"
             f"{about_body_html(libs)}"
             f"<p><small>{about_fine_print_html()}</small></p>")
+
+
+def licence_html(status) -> str:
+    """One line for the About box: who the copy is licensed to, or that it is unregistered (1.0.4)."""
+    if status is not None and status.registered:
+        lc = status.licence
+        return (f"<p style='margin-top:0'><b>Licensed to {html.escape(lc.name)}</b> "
+                f"({html.escape(lc.email)})<br>{html.escape(lc.type)} licence {html.escape(lc.id)}, "
+                f"issued {html.escape(lc.issued)}</p>")
+    return (f"<p style='margin-top:0'><b>{lic_mod.UNREGISTERED}.</b> Use at work needs a commercial "
+            "licence: see Help &gt; Licence.</p>")
 
 
 def about_link_html() -> str:
@@ -735,8 +749,8 @@ def about_body_html(libs: str) -> str:
             f"<p>{libs}</p>"
             "<p>Uses Qt for Python (LGPL-3.0), PortAudio via sounddevice (MIT), WASAPI loopback via "
             "PyAudioWPatch (Apache-2.0), libsndfile via soundfile (LGPL-2.1 / BSD-3), LAME via lameenc (LGPL), "
-            "NumPy (BSD-3), soxr (LGPL-2.1), pyserial (BSD-3) and hidapi (BSD). Licence texts are in "
-            "THIRD-PARTY-LICENSES.txt.</p>")
+            "RNNoise noise suppression (BSD-3), NumPy (BSD-3), soxr (LGPL-2.1), pyserial (BSD-3) and "
+            "hidapi (BSD). Licence texts are in THIRD-PARTY-LICENSES.txt.</p>")
 
 
 def about_fine_print_html() -> str:
@@ -747,7 +761,7 @@ def about_fine_print_html() -> str:
 class AboutDialog(QDialog):
     """Help > About: name and version, donation link, details, copyright and disclaimer in fine print."""
 
-    def __init__(self, libs: str, icon=None, parent=None):
+    def __init__(self, libs: str, icon=None, parent=None, licence_status=None):
         super().__init__(parent)
         self.setWindowTitle(f"About {APP_NAME}")
         lay = QVBoxLayout(self)
@@ -766,11 +780,16 @@ class AboutDialog(QDialog):
         self.link.setTextInteractionFlags(Qt.TextBrowserInteraction)
         self.link.setOpenExternalLinks(True)
         self.link.setAccessibleName(f"Donation website {WEBSITE}")
+        self.licence = QLabel(licence_html(licence_status))        # 1.0.4
+        self.licence.setTextFormat(Qt.RichText)
+        self.licence.setWordWrap(True)
+        self.licence.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.body = QLabel(about_body_html(libs))
         self.body.setWordWrap(True)
         self.body.setTextInteractionFlags(Qt.TextSelectableByMouse)
         col.addWidget(self.title)
         col.addWidget(self.link)
+        col.addWidget(self.licence)
         col.addWidget(self.body)
         head.addLayout(col, 1)
         lay.addLayout(head)
@@ -785,5 +804,80 @@ class AboutDialog(QDialog):
         bb = QDialogButtonBox(QDialogButtonBox.Ok)
         bb.accepted.connect(self.accept)
         lay.addWidget(bb)
-        self.setMinimumWidth(460)
-        self.setMaximumWidth(560)
+        self.fit()
+
+    def fit(self, width: int = 520) -> None:
+        """Size the box so every wrapped line shows. Qt does not pass the height of word-wrapped
+        labels in nested layouts up to the dialog, so the libraries paragraph was cut off
+        (since 1.0.0; found with the 1.0.4 licence line)."""
+        self.setFixedWidth(width)
+        lay = self.layout()
+        lay.activate()
+        h = lay.heightForWidth(width) if lay.hasHeightForWidth() else lay.sizeHint().height()
+        self.setFixedHeight(h)
+
+
+class LicenceDialog(QDialog):
+    """Help > Licence (1.0.4): who this copy is licensed to, or how to register it."""
+
+    def __init__(self, folder: str, check=None, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"{APP_NAME} licence")
+        self.folder = str(folder)
+        self._check = check or (lambda: lic_mod.check_folder(self.folder))
+        lay = QVBoxLayout(self)
+        self.state = QLabel()
+        self.state.setTextFormat(Qt.RichText)
+        self.state.setWordWrap(True)
+        self.state.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        lay.addWidget(self.state)
+        self.details = QLabel()
+        self.details.setTextFormat(Qt.RichText)
+        self.details.setWordWrap(True)
+        self.details.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        lay.addWidget(self.details)
+        where = QLabel(f"Program folder:<br><code>{html.escape(self.folder)}</code>")
+        where.setTextFormat(Qt.RichText)
+        where.setWordWrap(True)
+        where.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        lay.addWidget(where)
+        row = QHBoxLayout()
+        self.open_btn = QPushButton("&Open Program Folder")
+        self.open_btn.clicked.connect(self._open_folder)
+        self.check_btn = QPushButton("&Check Again")
+        self.check_btn.clicked.connect(self.refresh)
+        row.addWidget(self.open_btn)
+        row.addWidget(self.check_btn)
+        row.addStretch(1)
+        lay.addLayout(row)
+        bb = QDialogButtonBox(QDialogButtonBox.Close)
+        bb.rejected.connect(self.accept)
+        lay.addWidget(bb)
+        self.setMinimumWidth(480)
+        self.status = None
+        self.refresh()
+
+    def _open_folder(self) -> None:
+        from vrp import winutil
+        winutil.open_folder(self.folder)
+
+    def refresh(self) -> None:
+        st = self._check()
+        self.status = st
+        if st.registered:
+            lc = st.licence
+            self.state.setText(f"<h3 style='margin:0'>Licensed to {html.escape(lc.name)}</h3>")
+            rows = [("E-mail", lc.email), ("Licence", f"{lc.type} licence"), ("Licence number", lc.id),
+                    ("Issued", lc.issued), ("Licence file", os.path.basename(lc.file))]
+            text = "<table>" + "".join(f"<tr><td>{k}:&nbsp;</td><td>{html.escape(v)}</td></tr>"
+                                       for k, v in rows) + "</table>"
+        else:
+            self.state.setText(f"<h3 style='margin:0'>{lic_mod.UNREGISTERED}</h3>")
+            text = (f"<p>{APP_NAME} is free for personal use. For use at work, buy a commercial licence at "
+                    f"<a href='{WEBSITE}'>{WEBSITE}</a>. You will receive a licence file ending in "
+                    "<b>.key</b>: copy it into the program folder below, then choose Check Again.</p>")
+        if st.problems:
+            text += ("<p><b>Not accepted:</b><br>" + "<br>".join(html.escape(p) for p in st.problems) + "</p>")
+        self.details.setText(text)
+        self.details.setOpenExternalLinks(True)
+        self.details.setTextInteractionFlags(Qt.TextBrowserInteraction)

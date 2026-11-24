@@ -1,4 +1,4 @@
-"""Crash journal and recovery (FR-REC-006, FR-ERR-010).
+"""Crash journal and recovery.
 
 While a file is being recorded, '<file>.vrp-journal' holds its format, segment
 list and progress, rewritten atomically at every flush. The journal paths are

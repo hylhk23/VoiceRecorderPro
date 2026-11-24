@@ -1,4 +1,4 @@
-"""Playback (Section 9): decoder thread + output callback.
+"""Playback: decoder thread + output callback.
 
 The decoder thread reads the file through libsndfile (WAV, MP3, FLAC, ...),
 applies time-stretch, segment gaps, selection limits and audible scanning, and
@@ -196,7 +196,7 @@ class Player:
         self.seg_starts = sorted(seg_starts)
 
     def scan(self, direction: int, rate: float) -> None:
-        """Audible scan while Rewind/FF is held (FR-PLAY-005)."""
+        """Audible scan while Rewind/FF is held."""
         self.scan_rate = rate
         if direction != self.scan_dir:
             self.scan_dir = direction
@@ -288,7 +288,7 @@ class Player:
         if pos > end:
             return
         n = min(CHUNK, end - pos)
-        # stop at the next segment boundary to insert a playback gap (FR-PLAY-010)
+        # stop at the next segment boundary to insert a playback gap
         gap_here = False
         if self.gap_frames and self.seg_starts:
             i = bisect.bisect_right(self.seg_starts, pos)

@@ -1,4 +1,4 @@
-"""Computer audio: WASAPI loopback of the default output device (Section 6, v1.0.2).
+"""Computer audio: WASAPI loopback of the default output device (v1.0.2).
 
 "Computer audio" is whatever Windows plays through the default speakers or
 headphones (calls, videos, music). It is captured with PyAudioWPatch, a

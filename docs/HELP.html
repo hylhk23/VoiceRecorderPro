@@ -24,14 +24,14 @@
 </style>
 </head>
 <body><main>
-<h1>Voice Recorder Pro 1.0</h1>
+<h1>Voice Recorder Pro 1.0.4</h1>
 <p class="lead">A voice-activated sound recorder for Windows 11: it records only while someone is speaking, writes straight to disk, and lets you play, mark and cut recordings without another editor.</p>
-<nav><a href="#start">Getting started</a><a href="#window">Main window</a><a href="#vox">Vox</a><a href="#files">Files</a><a href="#play">Playback</a><a href="#edit">Editing</a><a href="#hotkeys">Hot-keys</a><a href="#external">Pedals &amp; devices</a><a href="#schedule">Schedules</a><a href="#cli">Command line</a><a href="#trouble">Troubleshooting</a></nav>
+<nav><a href="#start">Getting started</a><a href="#window">Main window</a><a href="#vox">Vox</a><a href="#files">Files</a><a href="#cleanup">Clean-up</a><a href="#play">Playback</a><a href="#edit">Editing</a><a href="#hotkeys">Hot-keys</a><a href="#external">Pedals &amp; devices</a><a href="#schedule">Schedules</a><a href="#cli">Command line</a><a href="#trouble">Troubleshooting</a><a href="#licence">Licence</a></nav>
 
 <h2 id="start">Getting started</h2>
 <ol>
 <li>Press <b>Record</b> (the red button, or <kbd>R</kbd>). With Vox on, the recorder waits for sound (title shows <code>[VOX]</code>) and records each time you speak (<code>[REC]</code>).</li>
-<li>Press <b>Stop</b> (<kbd>S</kbd>). The file is saved in <code>Documents\VRP Recordings</code> with a name like <code>Oct02_1.mp3</code>.</li>
+<li>Press <b>Stop</b> (<kbd>S</kbd>). The file is saved in <code>Documents\VRP Recordings</code> with a name like <code>VOX20261123-001.mp3</code> (VOX, the date, and a number that starts again at 001 each day).</li>
 <li>Press <b>Play</b> (<kbd>Space</kbd>) to listen. Drag the Position slider to move around.</li>
 </ol>
 <p>Closing the window keeps the app running in the notification area (tray). Use <b>File &gt; Exit</b> to quit. Recording continues when the window is hidden or the screen is locked, and Windows will not go to sleep while recording.</p>
@@ -68,7 +68,7 @@
 <p><b>Options &gt; Disable Vox</b> always records continuously; <b>Hide Vox</b> removes the Vox controls from the window.</p>
 
 <h2 id="files">Files, names and segments</h2>
-<p>Recordings are named from a pattern (default <code>{Mon}{dd}_{n}</code>). Tokens: <code>{yyyy} {yy} {mm} {Mon} {Month} {dd} {HH} {MM} {SS} {n} {n3} {host} {device} {tag}</code>. A <code>/</code> creates subfolders, e.g. <code>{yyyy}/{mm}/{Mon}{dd}_{n}</code>. Existing files are never overwritten.</p>
+<p>Recordings are named from a pattern (default <code>VOX{yyyy}{mm}{dd}-{n3}</code>, for example <code>VOX20261123-001.mp3</code>; the number starts again at 001 each day). Tokens: <code>{yyyy} {yy} {mm} {Mon} {Month} {dd} {HH} {MM} {SS} {n} {n3} {host} {device} {tag}</code>. A <code>/</code> creates subfolders, e.g. <code>{yyyy}/{mm}/{Mon}{dd}_{n}</code>. Existing files are never overwritten.</p>
 <p>Pressing Record with a file open <b>appends a new segment</b> to it (when the format matches); change this in <b>Options &gt; Recording</b>. Segment boundaries and time stamps are stored inside the file: MP3 chapters (ID3 CHAP), WAV cue points with labels, or FLAC CHAPTER tags, so other programs can see them too.</p>
 <p>Automatic new files: by size, after a duration, at midnight or every N hours, with no audio lost between files. While recording, data reaches the disk every second; after a crash or power cut the app offers to <b>recover</b> the file at the next start.</p>
 <table>
@@ -91,6 +91,16 @@
 <li>Recording appends to an open file only if it uses the same channel setting. Join refuses to combine separate-channel files with mixed ones. Saving a copy as mono mixes the two sides together.</li>
 <li>Playback plays your voice in the left ear and the other side in the right.</li>
 </ul>
+
+<h2 id="cleanup">Clean-up: noise suppression and automatic level</h2>
+<p>For an office with background noise, or a speaker some distance from the microphone, open <b>Options &gt; Format &gt; Clean-up (microphone)</b>:</p>
+<ul>
+<li><b>Noise suppression</b> removes steady background noise such as air conditioning, fans and computer hum (it uses RNNoise). It helps much less with other people talking nearby, and nothing can bring back words the microphone did not pick up.</li>
+<li><b>Automatic level</b> brings near and far voices to a similar loudness. It raises a quiet voice by up to 24 dB, lowers a voice that is very close, holds its setting during pauses so background noise is not pumped up, and never lets peaks go above &minus;1 dBFS.</li>
+<li><b>Also keep an untouched copy</b> (on by default) writes a second file next to the recording, named like <code>VOX20261123-001-original.mp3</code>, with the sound exactly as it came in. The two files line up sample for sample, so you can compare them or go back to the original.</li>
+</ul>
+<p>Clean-up applies to the microphone only, from the next recording. Vox listens after noise suppression, so steady noise no longer starts a recording; it listens before the automatic level, so the threshold keeps its meaning. Noise suppression delays the recording by about 0.2&nbsp;s; computer audio is delayed with it, so the two stay in step. The file's tags say what clean-up was applied.</p>
+<p>Best results still come from the microphone: put it close to the people speaking, turn Vox off for meetings, and use a higher MP3 bitrate (64 kbit/s) or WAV/FLAC.</p>
 
 <h2 id="play">Playback and transcription</h2>
 <ul>
@@ -166,5 +176,7 @@ vrp record --layout split                       microphone left, computer audio 
 <tr><td>Something else</td><td>Help &gt; Open Log Folder and look at <code>vrp.log</code>.</td></tr>
 </table>
 <p>Settings live in <code>%APPDATA%\VoiceRecorderPro\settings.json</code> (Options has Export/Import); logs in <code>%LOCALAPPDATA%\VoiceRecorderPro\Logs</code>. Put an empty file called <code>portable.flag</code> next to the program to keep settings and logs beside it instead.</p>
+<h2 id="licence">Licence</h2>
+<p>Voice Recorder Pro is free for personal use. For use at work, buy a commercial licence at <a href="https://software.4u.hk">software.4u.hk</a>. You receive a licence file ending in <code>.key</code>: copy it into the program folder (the folder with <code>run.bat</code>) and restart, or open <b>Help &gt; Licence</b> and choose <b>Check Again</b>. <b>Help &gt; Licence</b> and <b>Help &gt; About</b> then show who the copy is licensed to; without a valid licence file they show &ldquo;Unregistered copy &ndash; free for personal use&rdquo;. The licence file is checked on your PC only; nothing is sent anywhere. When you update, extract the new version over the old folder so the licence file stays where it is, or copy it into the new folder.</p>
 </main></body>
 </html>

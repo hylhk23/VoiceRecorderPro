@@ -70,7 +70,7 @@ def to_channels(x: np.ndarray, out_ch: int) -> np.ndarray:
 
 
 class HighPass:
-    """80 Hz high-pass filter with continuous state (FR-REC-010).
+    """80 Hz high-pass filter with continuous state.
 
     Two cascaded one-pole high-pass sections (12 dB/octave below the cut-off),
     computed with NumPy only: the recursion y[n] = r*y[n-1] + x[n] - x[n-1] is
