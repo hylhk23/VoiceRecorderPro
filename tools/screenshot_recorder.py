@@ -10,7 +10,8 @@ synthetic microphone and computer sound (--fake-audio), no hot-keys, no hand-ove
 no speech engine. The window is drawn twice as large (QT_SCALE_FACTOR=2), so the picture stays sharp.
 
 Two pictures are taken, each at a few moments:
-- "recorder": the live transcript off, the window as in 1.0 with the View and Transcript menus;
+- "recorder": the live transcript off, the window as in 1.0 with the View and Transcript menus, at the
+  narrowest width that still shows every menu (so no empty space in the middle);
 - "recorder-lt": the live transcript on in the Recorder layout, with the layout switch and one line
   of the newest words (invented demo text).
 It saves PNG files in a "screenshots" folder next to run.bat and closes by itself.
@@ -29,7 +30,7 @@ OUT, TMP = base.OUT, base.TMP
 def main() -> int:
     from PySide6.QtCore import Qt
     from PySide6.QtGui import QGuiApplication
-    from PySide6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication, QToolButton
 
     import vrp.app as A
     import vrp.core.engine as E
@@ -57,6 +58,9 @@ def main() -> int:
     c = A.AppController(app, A._gui_args(["--fake-audio"]))
     w, e, sv = c.window, c.engine, c.engine.transcriber
     w.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+    os.makedirs(OUT, exist_ok=True)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    notes = []
 
     def pump(sec):
         t0 = time.time()
@@ -64,10 +68,20 @@ def main() -> int:
             app.processEvents()
             time.sleep(0.01)
 
-    def place():
-        w.adjustSize()
-        width = max(w.width(), w.menuBar().sizeHint().width() + 8)      # every menu visible, no » button
-        w.resize(width, w.height())
+    def place(name):
+        w.show()
+        pump(0.5)
+        ext = w.menuBar().findChild(QToolButton, "qt_menubar_ext_button")
+        default = (w.width(), w.height(), bool(ext and ext.isVisible()))
+        width = w.minimumSizeHint().width()          # the narrowest window that still shows every menu (no »)
+        while width < 2000:
+            w.resize(width, w.height())
+            pump(0.15)
+            if ext is None or not ext.isVisible():
+                break
+            width += 4
+        notes.append(f"{name}: opens {default[0]}x{default[1]} with menus hidden behind >>: {default[2]}; "
+                     f"narrowest with every menu: {w.width()}x{w.height()}")
         scr = QGuiApplication.primaryScreen().availableGeometry()
         w.move(scr.x() + (scr.width() - w.width()) // 2, scr.y() + max(0, (scr.height() - w.height()) // 2))
         w.show()
@@ -75,9 +89,6 @@ def main() -> int:
         w.activateWindow()
         pump(0.5)
 
-    os.makedirs(OUT, exist_ok=True)
-    stamp = time.strftime("%Y%m%d-%H%M%S")
-    notes = []
 
     def shots(name, n=6):
         for i in range(1, n + 1):           # several moments: the synthetic sound comes in bursts
@@ -93,7 +104,7 @@ def main() -> int:
         notes.append(f"{name}: screen {screen.name()} dpr {screen.devicePixelRatio()} window {w.width()}x{w.height()}"
                      f" menu bar hint {w.menuBar().sizeHint().width()}")
 
-    place()
+    place("recorder")
     e.record()
     pump(1.5)
     shots("recorder")
@@ -107,7 +118,7 @@ def main() -> int:
     t0 = time.time()
     while time.time() - t0 < 10 and not (sv.worker and sv.worker.ready):
         pump(0.1)
-    place()
+    place("recorder-lt")
     e.record()
     pump(1.5)
     sec, who, lang, text = base.LINES[-1]
