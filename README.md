@@ -17,7 +17,7 @@ A voice-activated recorder for Windows 11 that captures your microphone **and** 
 **[Download the latest version](https://github.com/hylhk23/VoiceRecorderPro/releases/latest)** · Windows 11, 64-bit
 
 <p align="center">
-  <img src="docs/images/main-window.png" alt="Voice Recorder Pro recording: Mic and Computer sources both active on the level meters, Vox threshold slider and transport buttons" width="600">
+  <img src="docs/images/main-window.png" alt="Voice Recorder Pro recording with both panels: the recorder with the Mic and Computer level meters on the left, the live transcript on the right with time-stamped lines labelled Me and Others in English, Cantonese and Mandarin, a bookmark, and the words still being spoken at the bottom" width="860">
 </p>
 
 ## What it does
