@@ -130,6 +130,12 @@ class Engine(QObject):
         # notifications throttle
         self._notified: dict[str, float] = {}
         # timers
+        # 1.1.0: loads the speech engine 2 s after start (a child timer, so nothing is left pending when the
+        # engine is gone)
+        self._prewarm_timer = QTimer(self)
+        self._prewarm_timer.setSingleShot(True)
+        self._prewarm_timer.setInterval(2000)
+        self._prewarm_timer.timeout.connect(self._lt_prewarm)
         self._timer = QTimer(self)
         self._timer.setInterval(50)
         self._timer.timeout.connect(self._tick)
@@ -162,11 +168,12 @@ class Engine(QObject):
             pass
         self._finish_transcripts()
         self._sweep()
-        QTimer.singleShot(2000, self._lt_prewarm)
+        self._prewarm_timer.start()
 
     def shutdown(self, timeout: float = 5.0) -> None:
         """Stop everything and finalise any open file (exit, log-off, shutdown)."""
         self._closing = True
+        self._prewarm_timer.stop()
         self._timer.stop()
         if self.recorder.thread is not None:
             self.recorder.stop("exit")

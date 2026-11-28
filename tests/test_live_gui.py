@@ -260,11 +260,14 @@ def test_options_transcript_tab(qapp, ctl):
 
 
 def test_names_dialog(qapp):
+    """A saved entry with nothing under "Heard as" no longer makes an empty row with an editor open."""
     from vrp.ui.transcript_panel import NamesDialog
-    d = NamesDialog([{"heard": "a", "correct": "A"}, "junk", {"heard": "", "correct": "x"}])
-    assert d.table.rowCount() == 2
+    d = NamesDialog([{"heard": "a", "correct": "A"}, "junk", {"heard": " ", "correct": "x"}])
+    assert d.table.rowCount() == 1 and d.table.state() != d.table.State.EditingState
     d._add("  b  ", "B" * 300)
     assert d.names() == [{"heard": "a", "correct": "A"}, {"heard": "b", "correct": "B" * 200}]
+    import shiboken6
+    shiboken6.delete(d)          # a dialog without a parent, left to the end, crashed Qt's clean-up at exit
 
 
 def test_settings_migration_adds_new_hotkeys(tmp_path, monkeypatch):

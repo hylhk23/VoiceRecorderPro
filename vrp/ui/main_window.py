@@ -903,13 +903,16 @@ class MainWindow(QMainWindow):
             w = (size[0] if size else 0) or self._rec_width or self.rec_panel.sizeHint().width()
             self.setMinimumHeight(0)
             self.resize(w, self.minimumSizeHint().height())
-            QTimer.singleShot(0, lambda: self._layout_shown == "recorder" and
-                              self.resize(self.width(), self.minimumSizeHint().height()))
+            QTimer.singleShot(0, self, self._fit_recorder_height)       # cancelled if the window is gone
         else:
             w, h = size or DEFAULT_SIZE[mode]
             self.resize(w, h)
         self.transcript_panel.refresh()
         self.update_rolling()
+
+    def _fit_recorder_height(self) -> None:
+        if self._layout_shown == "recorder":
+            self.resize(self.width(), self.minimumSizeHint().height())
 
     def _apply_caption(self) -> None:
         on = bool(self.settings.get("lt.enabled"))
@@ -935,11 +938,13 @@ class MainWindow(QMainWindow):
         self.settings.set("ui.caption_bar", False)
 
     def dispose_caption(self) -> None:
+        """At exit: delete the caption window now, while the application still exists (it has no parent)."""
         if self._caption_win is not None:
-            self._caption_win.closed.disconnect(self._caption_closed)
-            self._caption_win.hide()
-            self._caption_win.deleteLater()
-            self._caption = None
+            cap, self._caption_win, self._caption = self._caption_win, None, None
+            cap.closed.disconnect(self._caption_closed)
+            cap.hide()
+            import shiboken6
+            shiboken6.delete(cap)
 
     def transcript_changed(self) -> None:
         self.transcript_panel.refresh()

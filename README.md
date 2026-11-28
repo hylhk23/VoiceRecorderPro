@@ -166,7 +166,7 @@ certutil -hashfile VoiceRecorderPro-portable-win64.zip SHA256
 ```
 
 ### Add the Live Transcript pack (optional)
-The live transcript needs the speech pack, a separate zip on the same [Releases](https://github.com/hylhk23/VoiceRecorderPro/releases/latest) page: `VoiceRecorderPro-LiveTranscript-pack-win64.zip`. It must match the program version (1.1).
+The live transcript needs the speech pack, a separate zip on the same [Releases](https://github.com/hylhk23/VoiceRecorderPro/releases/latest) page: `VoiceRecorderPro-LiveTranscript-pack-win64.zip` (about 180 MB; 270 MB unpacked). It must match the program version (1.1).
 
 1. Close Voice Recorder Pro (right-click the tray icon, **Exit**).
 2. Download the pack zip, right-click it, **Properties**, tick **Unblock**, **OK**.

@@ -522,7 +522,7 @@ class NamesDialog(QDialog):
         row = QHBoxLayout()
         add = QPushButton("&Add")
         rem = QPushButton("&Remove")
-        add.clicked.connect(lambda: self._add("", ""))
+        add.clicked.connect(lambda: self._add("", "", edit=True))
         rem.clicked.connect(self._remove)
         row.addWidget(add)
         row.addWidget(rem)
@@ -533,15 +533,15 @@ class NamesDialog(QDialog):
         bb.rejected.connect(self.reject)
         lay.addWidget(bb)
         for n in names or []:
-            if isinstance(n, dict):
+            if isinstance(n, dict) and str(n.get("heard", "")).strip():
                 self._add(str(n.get("heard", "")), str(n.get("correct", "")))
 
-    def _add(self, heard: str, correct: str) -> None:
+    def _add(self, heard: str, correct: str, edit: bool = False) -> None:
         r = self.table.rowCount()
         self.table.insertRow(r)
         self.table.setItem(r, 0, QTableWidgetItem(heard))
         self.table.setItem(r, 1, QTableWidgetItem(correct))
-        if not heard:
+        if edit:                       # Add button: type the new name at once
             self.table.setCurrentCell(r, 0)
             self.table.editItem(self.table.item(r, 0))
 

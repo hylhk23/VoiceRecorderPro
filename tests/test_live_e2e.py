@@ -86,7 +86,8 @@ def test_text_only_and_pause(qapp, tmp_path):
     mic = np.concatenate([np.zeros(8000, np.float32), en, np.zeros(16000, np.float32)])
 
     def pause_mid_sentence(e):
-        pump(qapp, 1.2)                                  # 2.4 s of audio: inside the sentence
+        # 3 s into the file (2.5 s into the sentence), counted in audio written, not in clock time
+        assert wait_for(qapp, lambda: e.transcriber.cur_pos >= 3.0, 20)
         e.record()
         assert wait_for(qapp, lambda: e.state.value == "rec_paused")
         pump(qapp, 0.6)
@@ -99,6 +100,8 @@ def test_text_only_and_pause(qapp, tmp_path):
     assert "Text only: no sound was saved" in txt and "Off the record (nothing saved)" in txt
     kinds = [x.kind for x in e.transcriber.entries]
     assert "off" in kinds and kinds.count("text") >= 2           # the sentence was cut at the pause
-    # the words before the pause are one phrase, finished at the pause (shown before the marker)
-    assert kinds[0] == "text" and kinds.index("off") < len(kinds) - 1
-    assert "tribal" in e.transcriber.entries[0].text.lower()
+    # the words before the pause are one phrase, finished at the pause (shown before the marker); the rest of
+    # the sentence comes after it
+    texts = [x.text.lower() for x in e.transcriber.entries if x.kind == "text"]
+    assert kinds[0] == "text" and kinds.index("off") < len(kinds) - 1, kinds
+    assert texts[0].startswith("the") and "pieces" not in texts[0] and "pieces" in " ".join(texts[1:]), texts
