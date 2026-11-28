@@ -2,7 +2,7 @@
 ; Build with build.bat, or: "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\installer.iss
 #define AppName "Voice Recorder Pro"
 #ifndef AppVersion
-  #define AppVersion "1.1.1"
+  #define AppVersion "1.1.2"
 #endif
 #define AppExe "VoiceRecorderPro.exe"
 

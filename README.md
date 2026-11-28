@@ -44,6 +44,14 @@ Voice Recorder Pro sits quietly in the system tray and records the conversations
 
 ---
 
+## What's new in 1.1.2
+
+**Fixed:** on Windows 11 the **Vox** button under the level meters was almost invisible while voice activation was on (white text on the light window). It is now drawn in the normal text colour, and struck through when Vox is off.
+
+The Live Transcript pack is the same as for 1.1.1: if you already have it, you do not need to download it again.
+
+Full list of changes: [release notes](https://github.com/hylhk23/VoiceRecorderPro/releases/tag/v1.1.2).
+
 ## What's new in 1.1.1
 
 **Live transcript** (the first release with it). See the words as they are spoken, in English, Cantonese and Mandarin, also mixed in one sentence, and save them beside the recording. Speech is recognised on your PC by the optional **Live Transcript pack** (a separate download, see [Install](#add-the-live-transcript-pack-optional)); nothing is sent over the internet and no graphics card is needed. Turn it on with **Transcript > Live Transcript On**.

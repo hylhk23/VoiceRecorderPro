@@ -101,7 +101,7 @@ With signing configured, `build.bat` signs both programs, the installer and its 
 .venv\Scripts\python -m pytest -q
 ```
 
-281 automated tests run without real audio hardware, using a synthetic microphone. They cover recording, stop and playback; Vox segments and click rejection; file naming; rollover with no lost samples (including a simulated midnight); recovering a file after the process is killed mid-recording; fast extraction from a one-hour WAV; byte-identical MP3 frame copies; cancelled edits leaving the original untouched; device unplug and reconnect; late and missed schedules; command-line control of a running copy; microphone + computer-audio mixing and changing sources while recording; plus settings, formats and offscreen GUI tests.
+283 automated tests run without real audio hardware, using a synthetic microphone. They cover recording, stop and playback; Vox segments and click rejection; file naming; rollover with no lost samples (including a simulated midnight); recovering a file after the process is killed mid-recording; fast extraction from a one-hour WAV; byte-identical MP3 frame copies; cancelled edits leaving the original untouched; device unplug and reconnect; late and missed schedules; command-line control of a running copy; microphone + computer-audio mixing and changing sources while recording; plus settings, formats and offscreen GUI tests.
 
 Not covered by automated tests (they need real devices on Windows 11): global hot-keys, USB foot pedals, serial lines, physically unplugging a microphone, real computer audio, and very long (8-hour+) recordings.
 

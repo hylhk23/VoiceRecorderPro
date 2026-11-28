@@ -124,12 +124,12 @@ class MainWindow(QMainWindow):
         self.vox_slider.setFocusPolicy(Qt.NoFocus)
         self.vox_slider.setAccessibleName("Vox threshold")
         self.vox_slider.setMinimumHeight(110)
+        # 1.1.2: a plain flat button, not a checkable one. Qt's Windows 11 style never fills a flat button, but
+        # draws a checked button's text in the white meant for the accent fill, so "Vox" was white on the light
+        # window whenever Vox was on. On or off is shown by the text: struck through when Vox is off.
         self.vox_btn = QPushButton("&Vox")
         self.vox_btn.setFlat(True)
-        self.vox_btn.setCheckable(True)
         self.vox_btn.setFocusPolicy(Qt.NoFocus)
-        self.vox_btn.setToolTip("Voice activation on/off (Alt+V)")
-        self.vox_btn.setAccessibleName("Vox on or off")
         self.meter = LevelMeter()
         self.meter.setAccessibleName("Microphone level")
         self.meter.setToolTip("Microphone level (the playback level while playing)")
@@ -647,10 +647,13 @@ class MainWindow(QMainWindow):
         A["monitor"].setChecked(e.monitoring)
         A["monitor"].setEnabled(not cap)
         A["loop"].setChecked(e.loop_selection)
-        self.vox_btn.setChecked(e.vox_enabled())
+        vox_on = e.vox_enabled()
         vf = self.vox_btn.font()
-        vf.setStrikeOut(not e.vox_enabled())
+        vf.setStrikeOut(not vox_on)
         self.vox_btn.setFont(vf)
+        self.vox_btn.setAccessibleName("Vox on" if vox_on else "Vox off")
+        self.vox_btn.setToolTip(f"Voice activation is {'on' if vox_on else 'off'}: click to turn it "
+                                f"{'off' if vox_on else 'on'} (Alt+V)")
         self.vox_btn.setEnabled(not self.settings.get("vox.disabled"))
         self.vox_slider.setEnabled(not self.settings.get("vox.disabled"))
         self.tray_vox.setChecked(e.vox_enabled())
