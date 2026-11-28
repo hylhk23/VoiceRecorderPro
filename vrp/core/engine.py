@@ -1553,6 +1553,8 @@ class Engine(QObject):
         self.transcriptChanged.emit()
 
     def bookmark(self) -> None:
+        if self.lt_active and self.state == State.REC_PAUSED:
+            return                                    # off the record: nothing to mark
         if not self.lt_active:
             self._tell("lt_bookmark", "Bookmark", "Bookmarks are added to the live transcript while recording "
                                                   "with it on (Options > Transcript).", 30)

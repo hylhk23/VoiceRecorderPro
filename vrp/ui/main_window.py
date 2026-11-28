@@ -58,7 +58,8 @@ class MainWindow(QMainWindow):
         self._tray_hint_shown = False
         self._window_shortcuts: list[QShortcut] = []
         self._layout_shown: str | None = None
-        self._caption: CaptionBar | None = None
+        self._caption: CaptionBar | None = None        # the caption bar while it is shown
+        self._caption_win: CaptionBar | None = None    # made once, then shown and hidden
         self._rec_width = 0
         self.setWindowIcon(icons.app_icon())
         self._badge_kind: str | None = None
@@ -911,22 +912,34 @@ class MainWindow(QMainWindow):
         self.update_rolling()
 
     def _apply_caption(self) -> None:
-        want = bool(self.settings.get("ui.caption_bar")) and bool(self.settings.get("lt.enabled"))
+        on = bool(self.settings.get("lt.enabled"))
+        want = bool(self.settings.get("ui.caption_bar")) and on
         self.caption_action.setChecked(bool(self.settings.get("ui.caption_bar")))
-        self.caption_action.setEnabled(bool(self.settings.get("lt.enabled")))
+        self.caption_action.setEnabled(on)
         if want and self._caption is None:
-            self._caption = CaptionBar(self.engine, self.settings)
-            self._caption.closed.connect(self._caption_closed)
+            if self._caption_win is None:
+                self._caption_win = CaptionBar(self.engine, self.settings)
+                self._caption_win.closed.connect(self._caption_closed)
+            self._caption = self._caption_win
+            self._caption.refresh()
             self._caption.show()
         elif not want and self._caption is not None:
             cap, self._caption = self._caption, None
-            cap.closed.disconnect(self._caption_closed)
-            cap.close()
-            cap.deleteLater()
+            cap.save_geometry()
+            cap.hide()
 
     def _caption_closed(self) -> None:
+        """The user closed the caption window. It is only hidden: deleting a window from inside its own
+        close event frees memory Qt is still using."""
         self._caption = None
         self.settings.set("ui.caption_bar", False)
+
+    def dispose_caption(self) -> None:
+        if self._caption_win is not None:
+            self._caption_win.closed.disconnect(self._caption_closed)
+            self._caption_win.hide()
+            self._caption_win.deleteLater()
+            self._caption = None
 
     def transcript_changed(self) -> None:
         self.transcript_panel.refresh()

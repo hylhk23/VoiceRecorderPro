@@ -490,9 +490,12 @@ class CaptionBar(QWidget):
         self.off.setText("▶ Back on the record" if e.state == State.REC_PAUSED else "❚❚ Off the record")
         self.off.setEnabled(e.lt_active)
 
-    def closeEvent(self, ev) -> None:
+    def save_geometry(self) -> None:
         g = self.geometry()
         self.settings.set("ui.caption_geometry", f"{g.x()},{g.y()},{g.width()},{g.height()}")
+
+    def closeEvent(self, ev) -> None:
+        self.save_geometry()
         super().closeEvent(ev)
         self.closed.emit()
 

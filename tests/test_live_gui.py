@@ -197,6 +197,13 @@ def test_rolling_line_and_caption_bar(qapp, ctl):
     w._caption.close()                                              # closing the window turns it off
     pump(qapp, 0.1)
     assert w._caption is None and not s.get("ui.caption_bar") and s.get("ui.caption_geometry")
+    # regression: the window was deleted from inside its own close event (heap corruption, found as an
+    # intermittent crash at exit when these tests ran before the engine tests); it is now only hidden
+    import shiboken6
+    assert shiboken6.isValid(cap) and w._caption_win is cap and not cap.isVisible()
+    s.set("ui.caption_bar", True)
+    pump(qapp, 0.1)
+    assert w._caption is cap and cap.isVisible()
 
 
 def test_mini_bar_shows_the_recording(qapp, ctl):

@@ -204,6 +204,7 @@ class AppController:
         self.ext.stop()
         self.server.close()
         self.window.tray.hide()
+        self.window.dispose_caption()
         self.settings.save()
         self.app.quit()
 
