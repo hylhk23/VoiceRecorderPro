@@ -6,10 +6,11 @@ import os
 import numpy as np
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QKeySequence
-from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
+from PySide6.QtWidgets import (QAbstractItemView, QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
                                QDoubleSpinBox, QFileDialog, QFormLayout, QFrame, QGroupBox, QHBoxLayout, QHeaderView,
                                QInputDialog, QKeySequenceEdit, QLabel, QLineEdit, QListWidget, QMessageBox,
-                               QPushButton, QScrollArea, QSlider, QSpinBox, QTableWidget, QTabWidget, QVBoxLayout, QWidget)
+                               QPushButton, QRadioButton, QScrollArea, QSlider, QSpinBox, QTableWidget, QTabWidget,
+                               QVBoxLayout, QWidget)
 
 from vrp import paths, winutil
 from vrp.core import naming
@@ -18,6 +19,8 @@ from vrp.core.dsp import percent_to_dbfs
 from vrp.core.model import FormatSpec
 from vrp.inputs import external, keymap
 from vrp.settings import EXTERNAL_ONLY_ACTIONS, HOTKEY_ACTIONS, TAB_PREFIXES
+from vrp.transcribe import LANGUAGES, SCRIPTS
+from vrp.transcribe import pack as lt_pack
 from vrp.ui.dialogs import CalibrateDialog, FormatForm
 
 ACTION_CHOICES = [(a, label) for a, label, _ in HOTKEY_ACTIONS if a not in ("show_hide", "suspend_hotkeys")] + \
@@ -39,7 +42,7 @@ class OptionsDialog(QDialog):
     def __init__(self, settings, engine, hotkeys, ext_manager, backend, tab: str | None = None, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Options")
-        self.resize(760, 600)
+        self.resize(880, 600)
         self.settings = settings
         self.engine = engine
         self.hotkeys = hotkeys
@@ -59,6 +62,7 @@ class OptionsDialog(QDialog):
         self._hotkeys()
         self._external()
         self._devices()
+        self._transcript()
         self._advanced()
         bottom = QHBoxLayout()
         for text, fn in (("Export\u2026", self._export), ("Import\u2026", self._import),
@@ -973,6 +977,145 @@ class OptionsDialog(QDialog):
             done_text = f"Test finished. Peak level {peak * 100:.0f}{warn}."
             QTimer.singleShot(3300, lambda: (o.stop(), o.close(), self.dev_note.setText(done_text)))
         QTimer.singleShot(3000, finish)
+
+    # --------------------------------------------------- live transcript (1.1.0)
+    def _transcript(self) -> None:
+        f = self._page("Transcript")
+        self.lt_on = self._check("lt.enabled", "Transcribe while recording (live transcript)")
+        f.addRow("", self.lt_on)
+        self.lt_pack_label = QLabel()
+        self.lt_pack_label.setWordWrap(True)
+        self.lt_pack_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        check = QPushButton("Check pack files")
+        check.setToolTip("Compare every file of the Live Transcript pack with its SHA-256 checksum")
+        check.clicked.connect(self._lt_verify)
+        f.addRow("Speech pack:", self.lt_pack_label)
+        f.addRow("", _row(check))
+        about = QLabel("Speech is recognised on this PC by the Live Transcript pack: nothing is sent over the "
+                       "internet. English, Cantonese and Mandarin, also mixed in one sentence. Words appear a "
+                       "moment after they are spoken; the text is corrected when each phrase ends.")
+        about.setWordWrap(True)
+        f.addRow(about)
+        f.addRow("Language:", self._combo("lt.language", [(label, code) for code, label, _sv in LANGUAGES]))
+        f.addRow("Chinese characters:", self._combo("lt.script", [(label, code) for code, label in SCRIPTS]))
+        self._lt_names: list = []
+        self.lt_names_label = QLabel()
+        names_btn = QPushButton("Edit names…")
+        names_btn.clicked.connect(self._lt_edit_names)
+        f.addRow("Names and terms:", _row(self.lt_names_label, names_btn))
+
+        def names_set(v):
+            self._lt_names = [dict(heard=str(n.get("heard", "")), correct=str(n.get("correct", "")))
+                              for n in (v or []) if isinstance(n, dict)]
+            self._lt_names_text()
+        self._bind("lt.names", lambda: list(self._lt_names), names_set)
+        # what to save
+        g = QGroupBox("What to save")
+        gl = QVBoxLayout(g)
+        self.lt_save_group = QButtonGroup(self)
+        radios = {}
+        for value, text, note in (
+                ("audio_text", "Audio and text", "The recording and its transcript are both kept."),
+                ("text_check", "Text, with audio kept for checking",
+                 "The audio is deleted automatically after the days set below, or when you choose Transcript > "
+                 "Mark Checked and Delete Audio."),
+                ("text_only", "Text only",
+                 "No sound is saved at all: only the transcript (.txt). Vox, segments and editing need audio, "
+                 "so they do not apply.")):
+            r = QRadioButton(text)
+            r.setToolTip(note)
+            self.lt_save_group.addButton(r)
+            radios[value] = r
+            gl.addWidget(r)
+            lab = QLabel(note)
+            lab.setWordWrap(True)
+            lab.setContentsMargins(24, 0, 0, 4)
+            gl.addWidget(lab)
+        self.lt_keep = self._spin("lt.keep_days", 1, 90, " days")
+        gl.addWidget(_row(QLabel("Keep audio for checking for:"), self.lt_keep))
+        gl.addWidget(self._check("lt.files_srt", "Also save subtitles (.srt) next to the audio"))
+
+        def save_get():
+            for v, r in radios.items():
+                if r.isChecked():
+                    return v
+            return "text_check"
+
+        def save_set(v):
+            radios.get(v, radios["text_check"]).setChecked(True)
+            self.lt_keep.setEnabled(save_get() == "text_check")
+        for r in radios.values():
+            r.toggled.connect(lambda _on: self.lt_keep.setEnabled(save_get() == "text_check"))
+        self._bind("lt.save", save_get, save_set)
+        f.addRow(g)
+        # privacy
+        g = QGroupBox("Privacy")
+        gf = QFormLayout(g)
+        enc = self._check("lt.encrypt", "Encrypt new recordings and transcripts with Windows encryption (EFS)")
+        enc.setToolTip("Only your Windows account can open the files. Needs Windows Pro, Enterprise or Education "
+                       "and an NTFS drive. Back up your encryption certificate (Windows: Manage file encryption "
+                       "certificates), or the files cannot be opened after Windows is reinstalled.")
+        gf.addRow(enc)
+        if not winutil.IS_WINDOWS:
+            enc.setEnabled(False)
+        gf.addRow(self._check("lt.mask", "Mask phone, ID and card numbers and e-mail addresses in the transcript"))
+        gf.addRow("Delete transcripts after:", _row(self._spin("lt.delete_days", 0, 3650, " days", special="Never")))
+        off = QLabel("Off the record: pause the recording (R, or the global hot-key Ctrl+Alt+R by default). "
+                     "Nothing is recorded or transcribed until you resume; the transcript shows where the "
+                     "pause was.")
+        off.setWordWrap(True)
+        gf.addRow(off)
+        f.addRow(g)
+        # performance
+        g = QGroupBox("Performance")
+        gf = QFormLayout(g)
+        gf.addRow("", self._check("lt.partial", "Show words while they are spoken (uses more processor time)"))
+        gf.addRow("Processor threads:", _row(self._spin("lt.threads", 1, 8)))
+        gf.addRow("Priority:", _row(self._combo("lt.priority", [("Below normal (recording first)", "below"),
+                                                                ("Normal", "normal")])))
+        f.addRow(g)
+        sot = self._folder("lt.sot_folder", "Secure Offline Transcriber folder (the one with run.bat)")
+        sot.setToolTip("For Transcript > Open in Secure Offline Transcriber: proofreading, a larger model, "
+                       "Word export and summaries.")
+        f.addRow("Secure Offline Transcriber:", sot)
+        self._lt_pack_text()
+
+    def _lt_pack_text(self, refresh: bool = False) -> None:
+        st = self.engine.lt_pack_status(refresh=refresh) if hasattr(self.engine, "lt_pack_status") else \
+            lt_pack.status()
+        if st.ok:
+            self.lt_pack_label.setText(f"Installed: {st.model_name} (pack {st.version}) in {st.folder}")
+        else:
+            self.lt_pack_label.setText(f"{st.reason} Download the Live Transcript pack for this version and "
+                                       "unzip it into the program folder (choose Replace when asked).")
+
+    def _lt_verify(self) -> None:
+        st = self.engine.lt_pack_status(refresh=True)
+        if not st.ok:
+            self._lt_pack_text()
+            QMessageBox.warning(self, "Live Transcript pack", st.reason)
+            return
+        self.setCursor(Qt.WaitCursor)
+        try:
+            bad = lt_pack.verify(st)
+        finally:
+            self.unsetCursor()
+        if bad:
+            QMessageBox.warning(self, "Live Transcript pack", "These files do not match their checksums; unzip "
+                                "the pack again:\n" + "\n".join(bad[:20]))
+        else:
+            QMessageBox.information(self, "Live Transcript pack", f"All {len(st.files)} files are complete.")
+
+    def _lt_names_text(self) -> None:
+        n = len(self._lt_names)
+        self.lt_names_label.setText("None" if not n else f"{n} name{'s' if n != 1 else ''}")
+
+    def _lt_edit_names(self) -> None:
+        from vrp.ui.transcript_panel import NamesDialog
+        d = NamesDialog(self._lt_names, self)
+        if d.exec() == QDialog.Accepted:
+            self._lt_names = d.names()
+            self._lt_names_text()
 
     # --------------------------------------------------------- advanced
     def _advanced(self) -> None:

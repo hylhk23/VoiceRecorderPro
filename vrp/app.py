@@ -87,6 +87,9 @@ class AppController:
             self.window.toggle_window()
         elif action == "suspend_hotkeys":
             self.toggle_suspend()
+        elif action == "caption_bar":
+            if self.settings.get("lt.enabled"):
+                self.settings.set("ui.caption_bar", not self.settings.get("ui.caption_bar"))
         elif action == "mic_privacy":
             pass
 

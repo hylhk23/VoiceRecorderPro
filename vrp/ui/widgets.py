@@ -21,6 +21,16 @@ def _db_pos(pct: float) -> float:
     return max(0.0, min(1.0, (db + 60) / 60))
 
 
+def meter_colours(dark: bool) -> dict:
+    """Meter segments: below the Vox threshold, above it, and the clip mark.
+
+    1.1.0: "above" was magenta (#c2185b), only 39 (deutan) and 26 (protan) CIEDE2000 from the blue
+    under red/green colour-vision simulation; amber is over 54 in both. The clip mark is the top
+    segment, outlined, so it does not rely on its colour either.
+    """
+    return {"below": "#3a7bd5", "above": "#ffb000" if dark else "#b86e00", "clip": "#e53935"}
+
+
 class LevelMeter(QWidget):
     """Segmented vertical meter, one bar per channel, peak hold, threshold line, clip light."""
 
@@ -72,9 +82,10 @@ class LevelMeter(QWidget):
         thr = self._frac(self.threshold)
         dark = pal.color(QPalette.Window).lightness() < 128
         off = QColor(255, 255, 255, 28) if dark else QColor(0, 0, 0, 22)
-        below = QColor("#3a7bd5")
-        above = QColor("#c2185b")
-        clip_red = QColor("#e53935")
+        mc = meter_colours(dark)
+        below = QColor(mc["below"])
+        above = QColor(mc["above"])
+        clip_red = QColor(mc["clip"])
         clipping = time.monotonic() < self.clip_until
         for c in range(n):
             x = c * (bar_w + gap)
@@ -84,7 +95,11 @@ class LevelMeter(QWidget):
                 y = h - 1 - (s + 1) * seg_h
                 r = QRectF(x, y + 1, bar_w, seg_h - 1.5)
                 if s == SEGMENTS - 1 and clipping:
-                    color = clip_red
+                    p.fillRect(r, clip_red)
+                    p.setPen(QPen(pal.color(QPalette.WindowText), 1))
+                    p.drawRect(r.adjusted(0.5, 0.5, -0.5, -0.5))
+                    p.setPen(Qt.NoPen)
+                    continue
                 elif lit >= frac_top - 0.5 / SEGMENTS:
                     color = above if (s + 0.5) / SEGMENTS >= thr and self.show_threshold else below
                 else:

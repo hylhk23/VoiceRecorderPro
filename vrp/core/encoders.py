@@ -72,6 +72,33 @@ class BaseWriter:
         return open(paths.longpath(path), "x+b")
 
 
+class NullWriter(BaseWriter):
+    """1.1.0, live transcript "Text only": counts frames like a file but writes nothing to disk."""
+    codec = "none"
+
+    def __init__(self, path: str, fmt: FormatSpec, append: bool = False):
+        super().__init__(path, fmt)
+
+    def write(self, x: np.ndarray) -> None:
+        self.frames += int(x.shape[0])
+
+    def flush(self) -> None:
+        pass
+
+    def fsync(self) -> None:
+        pass
+
+    def finalize(self, segments: list[Segment], tags: dict) -> None:
+        self.closed = True
+
+    def abort(self) -> None:
+        self.closed = True
+
+    @property
+    def size(self) -> int:
+        return 0
+
+
 # ============================================================================ WAV
 class WavWriter(BaseWriter):
     codec = "wav"
@@ -391,5 +418,5 @@ def wav_header_probe(path: str) -> wavfile.WavInfo:
         return wavfile.parse(f)
 
 
-__all__ = ["create_writer", "can_append", "WriterError", "BaseWriter", "WavWriter", "Mp3Writer",
+__all__ = ["create_writer", "can_append", "WriterError", "BaseWriter", "NullWriter", "WavWriter", "Mp3Writer",
            "FlacWriter"]

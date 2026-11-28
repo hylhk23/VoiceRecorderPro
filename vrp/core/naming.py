@@ -58,9 +58,13 @@ def validate_pattern(pattern: str) -> str | None:
     return None
 
 
+# 1.1.0: a transcript saved without audio ("Text only") also takes its number
+CLASH_EXTS = AUDIO_EXTS + (".txt",)
+
+
 def _exists_any(base: Path) -> bool:
-    """True when base.<any audio ext> (or a journal for it) already exists."""
-    for ext in AUDIO_EXTS:
+    """True when base.<any audio ext> or a transcript base.txt already exists."""
+    for ext in CLASH_EXTS:
         if base.with_name(base.name + ext).exists():
             return True
     return False

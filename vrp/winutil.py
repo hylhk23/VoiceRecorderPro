@@ -197,3 +197,46 @@ def set_app_user_model_id(app_id: str) -> None:
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
         except Exception:
             pass
+
+
+FILE_ATTRIBUTE_ENCRYPTED = 0x4000
+
+
+def efs_encrypt(path: str | os.PathLike) -> tuple[bool, str]:
+    """1.1.0: encrypt a file or folder with Windows' Encrypting File System (EFS).
+
+    EFS ties the data to the signed-in Windows account: the user opens the files as
+    usual, other accounts cannot. On a folder it encrypts the files created in it from
+    then on. It needs Windows Pro, Enterprise or Education and an NTFS drive; Windows
+    Home, FAT/exFAT drives, network shares and some cloud folders refuse it.
+    Returns (done, reason when not done).
+    """
+    if not IS_WINDOWS:
+        return False, "Windows encryption is only available on Windows"
+    try:
+        import ctypes
+        from ctypes import wintypes
+        p = str(path)
+        attrs = ctypes.windll.kernel32.GetFileAttributesW(p)
+        if attrs != 0xFFFFFFFF and attrs & FILE_ATTRIBUTE_ENCRYPTED:
+            return True, ""
+        f = ctypes.windll.advapi32.EncryptFileW
+        f.argtypes = [wintypes.LPCWSTR]
+        f.restype = wintypes.BOOL
+        if f(p):
+            return True, ""
+        err = ctypes.get_last_error() or ctypes.windll.kernel32.GetLastError()
+        return False, ctypes.FormatError(err).strip() if err else "Windows refused"
+    except Exception as exc:
+        return False, str(exc)
+
+
+def is_encrypted(path: str | os.PathLike) -> bool:
+    if not IS_WINDOWS:
+        return False
+    try:
+        import ctypes
+        attrs = ctypes.windll.kernel32.GetFileAttributesW(str(path))
+        return attrs != 0xFFFFFFFF and bool(attrs & FILE_ATTRIBUTE_ENCRYPTED)
+    except Exception:
+        return False

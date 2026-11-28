@@ -9,7 +9,7 @@ rem Needs: full Python 3.12/3.13 64-bit and Visual Studio Build Tools ("Desktop 
 setlocal EnableExtensions
 cd /d "%~dp0"
 set "PYINSTALLER_VERSION=6.22.3"
-set "APPVER=1.0.4"
+set "APPVER=1.1.0"
 
 if not exist ".venv-build\Scripts\python.exe" (
     py -3.13 -m venv .venv-build 2>nul || py -3.12 -m venv .venv-build 2>nul || python -m venv .venv-build

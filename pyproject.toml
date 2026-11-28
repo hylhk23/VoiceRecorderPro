@@ -1,6 +1,6 @@
 [project]
 name = "voice-recorder-pro"
-version = "1.0.4"
+version = "1.1.0"
 description = "Voice-activated sound recorder for Windows 11"
 requires-python = ">=3.11"
 dependencies = [

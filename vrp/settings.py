@@ -28,7 +28,7 @@ DEFAULT_FILE_PATTERN = "VOX{yyyy}{mm}{dd}-{n3}"
 OLD_DEFAULT_FILE_PATTERN = "{Mon}{dd}_{n}"
 # One-off changes applied to settings files written by older versions.
 # The revision is a private key, so older versions simply ignore it (unknown keys pass through).
-SETTINGS_REV = 1
+SETTINGS_REV = 2          # 2 = 1.1.0: new hot-key actions get their default keys
 
 
 @dataclass
@@ -64,6 +64,8 @@ HOTKEY_ACTIONS: list[tuple[str, str, str]] = [
     ("mark_out", "Set Out mark", "Ctrl+Alt+O"),
     ("extract", "Extract selection to file", ""),
     ("insert_boundary", "Insert segment boundary", "Ctrl+Alt+M"),
+    ("bookmark", "Bookmark in the live transcript", "Ctrl+Alt+K"),
+    ("caption_bar", "Caption bar on/off", ""),
     ("new_recording", "New recording", ""),
     ("speed_down", "Speed down (5%)", ""),
     ("speed_up", "Speed up (5%)", ""),
@@ -145,6 +147,27 @@ SCHEMA: dict[str, Spec] = {
     "fmt.denoise": S(False),            # noise suppression (RNNoise)
     "fmt.level": S(False),              # automatic level
     "fmt.keep_original": S(True),       # also keep an untouched copy while cleaning
+    # Live transcript (1.1.0)
+    "lt.enabled": S(False),             # transcribe while recording (needs the Live Transcript pack)
+    "lt.language": S("auto", choices=["auto", "en", "yue", "zh"]),
+    "lt.script": S("hk", choices=["hk", "tw", "cn"]),
+    "lt.names": S([], list),            # [{"heard": ..., "correct": ...}]
+    "lt.save": S("text_check", choices=["audio_text", "text_check", "text_only"]),
+    "lt.keep_days": S(7, int, 1, 90),   # audio kept for checking
+    "lt.files_srt": S(True),
+    "lt.encrypt": S(False),             # Windows encryption (EFS) of new recordings and transcripts
+    "lt.mask": S(False),
+    "lt.delete_days": S(0, int, 0, 3650),   # transcripts; 0 = keep
+    "lt.partial": S(True),              # show words while they are spoken
+    "lt.threads": S(2, int, 1, 8),
+    "lt.priority": S("below", choices=["below", "normal"]),
+    "lt.sot_folder": S(""),             # Secure Offline Transcriber, for "Open in"
+    # Window layout (1.1.0)
+    "ui.layout": S("both", choices=["both", "recorder", "transcript"]),
+    "ui.layout_widths": S({}, dict),
+    "ui.caption_bar": S(False),
+    "ui.caption_size": S(20, int, 12, 40),
+    "ui.caption_geometry": S(""),
     # Vox
     "vox.enabled": S(True),
     "vox.threshold": S(4, int, 0, 100),
@@ -201,6 +224,7 @@ TAB_PREFIXES = {
     "Recording": ("rec.",),
     "Format": ("fmt.",),
     "Vox": ("vox.", "ui.meter_scale"),
+    "Transcript": ("lt.",),
     "Playback": ("play.",),
     "Hot-keys": ("hotkeys.",),
     "External devices": ("ext.",),
@@ -210,7 +234,8 @@ TAB_PREFIXES = {
 
 # Keys never touched by "Restore defaults" or export/import.
 PRIVATE_KEYS = {"general.first_run_done", "general.recent_files", "general.window_geometry",
-                "general.last_open_dir", "rec.network_warned", "general.settings_rev"}
+                "general.last_open_dir", "rec.network_warned", "general.settings_rev", "ui.layout_widths",
+                "ui.caption_geometry"}
 
 
 def defaults() -> dict:
@@ -363,6 +388,16 @@ class Settings:
             if data.get("rec.pattern") == OLD_DEFAULT_FILE_PATTERN:
                 data["rec.pattern"] = DEFAULT_FILE_PATTERN
                 log.info("file-name pattern changed to the new default %s", DEFAULT_FILE_PATTERN)
+        if rev < 2:
+            # 1.1.0: hot-key actions added since; each gets its default keys unless another action uses them
+            b = data.get("hotkeys.bindings")
+            if isinstance(b, dict):
+                used = {str((v or {}).get("keys", "")).lower() for v in b.values() if isinstance(v, dict)}
+                for action, _label, keys in HOTKEY_ACTIONS:
+                    if action not in b:
+                        free = keys and keys.lower() not in used
+                        b[action] = {"keys": keys if free else "", "scope": "global"}
+                        used.add(keys.lower())
         data["general.settings_rev"] = SETTINGS_REV
 
     def load(self) -> None:

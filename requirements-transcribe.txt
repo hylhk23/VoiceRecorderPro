@@ -1,0 +1,5 @@
+# Live Transcript pack (optional, 1.1.0): the speech engine and Chinese character conversion.
+# Not needed to run or test the recorder; packaging/make_lt_pack.py puts these into the pack zip.
+sherpa-onnx==2.0.1
+sherpa-onnx-core==2.0.1
+opencc-python-reimplemented==0.1.7

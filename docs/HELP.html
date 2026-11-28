@@ -24,9 +24,9 @@
 </style>
 </head>
 <body><main>
-<h1>Voice Recorder Pro 1.0.4</h1>
+<h1>Voice Recorder Pro 1.1.0</h1>
 <p class="lead">A voice-activated sound recorder for Windows 11: it records only while someone is speaking, writes straight to disk, and lets you play, mark and cut recordings without another editor.</p>
-<nav><a href="#start">Getting started</a><a href="#window">Main window</a><a href="#vox">Vox</a><a href="#files">Files</a><a href="#cleanup">Clean-up</a><a href="#play">Playback</a><a href="#edit">Editing</a><a href="#hotkeys">Hot-keys</a><a href="#external">Pedals &amp; devices</a><a href="#schedule">Schedules</a><a href="#cli">Command line</a><a href="#trouble">Troubleshooting</a><a href="#licence">Licence</a></nav>
+<nav><a href="#start">Getting started</a><a href="#window">Main window</a><a href="#vox">Vox</a><a href="#files">Files</a><a href="#cleanup">Clean-up</a><a href="#transcript">Live transcript</a><a href="#play">Playback</a><a href="#edit">Editing</a><a href="#hotkeys">Hot-keys</a><a href="#external">Pedals &amp; devices</a><a href="#schedule">Schedules</a><a href="#cli">Command line</a><a href="#trouble">Troubleshooting</a><a href="#licence">Licence</a></nav>
 
 <h2 id="start">Getting started</h2>
 <ol>
@@ -102,6 +102,50 @@
 <p>Clean-up applies to the microphone only, from the next recording. Vox listens after noise suppression, so steady noise no longer starts a recording; it listens before the automatic level, so the threshold keeps its meaning. Noise suppression delays the recording by about 0.2&nbsp;s; computer audio is delayed with it, so the two stay in step. The file's tags say what clean-up was applied.</p>
 <p>Best results still come from the microphone: put it close to the people speaking, turn Vox off for meetings, and use a higher MP3 bitrate (64 kbit/s) or WAV/FLAC.</p>
 
+<h2 id="transcript">Live transcript (new in 1.1.0)</h2>
+<p>Voice Recorder Pro can show the words as they are spoken, in <b>English, Cantonese and Mandarin</b>, also mixed in one sentence, and save them as text beside the recording. Speech is recognised on your PC by the free <b>Live Transcript pack</b>; nothing is sent over the internet, and no graphics card is needed.</p>
+<h3>Set it up</h3>
+<ol>
+<li>Download the Live Transcript pack zip for this version from the same Releases page as the program (about 230 MB) and unblock it (right-click &gt; Properties &gt; Unblock).</li>
+<li>Close Voice Recorder Pro, then extract the pack into the folder that holds the <code>VoiceRecorderPro</code> folder, so it merges into it (choose <b>Replace</b> if asked). It adds a <code>transcribe</code> folder and a few libraries inside <code>python</code>.</li>
+<li>Start the program and choose <b>Transcript &gt; Live Transcript On</b>. <b>Options &gt; Transcript</b> shows whether the pack is installed; <b>Check pack files</b> compares every file with its checksum.</li>
+</ol>
+<h3>The window</h3>
+<p>With the live transcript on, the switch at the top right (<b>Both | Recorder | Transcript</b>, or <b>View</b> menu, <kbd>Ctrl+1</kbd> / <kbd>Ctrl+2</kbd> / <kbd>Ctrl+3</kbd>) chooses what you see:</p>
+<ul>
+<li><b>Both</b>: the recorder on the left and the transcript on the right.</li>
+<li><b>Recorder</b>: the recorder alone, with one line of the newest words at the bottom.</li>
+<li><b>Transcript</b>: the transcript alone, with a small recording bar at the bottom (state, time, Mic and Computer levels, Record/Pause and Stop).</li>
+</ul>
+<p>The window remembers its size for each choice. Words still being recognised are shown in italics and end with &ldquo;&hellip;&rdquo;; they are corrected when the speaker pauses. The line above the text says what is being saved. <b>View &gt; Caption Bar</b> opens a small window that stays on top of other programs, for following a Teams or Zoom call; A&minus; and A+ change the text size.</p>
+<p>With <b>Options &gt; Format &gt; Channels &gt; Separate</b>, the transcript labels the microphone <b>Me</b> (a filled blue tag) and the computer audio <b>Others</b> (orange bold text). With one mixed track there are no labels.</p>
+<h3>What is saved</h3>
+<p>Choose in <b>Options &gt; Transcript &gt; What to save</b>:</p>
+<table>
+<tr><th>Choice</th><th>Files</th></tr>
+<tr><td>Audio and text</td><td>The recording (for example <code>VOX20261128-001.mp3</code>), its transcript <code>VOX20261128-001.txt</code> and subtitles <code>VOX20261128-001.srt</code>.</td></tr>
+<tr><td>Text, with audio kept for checking (default)</td><td>The same files, but the audio is deleted automatically after the number of days you set (7 by default), or when you choose <b>Transcript &gt; Mark Checked and Delete Audio</b>. The audio is deleted for good, not moved to the Recycle Bin. The transcript stays.</td></tr>
+<tr><td>Text only</td><td>Only the <code>.txt</code>. No sound is saved at all, so Vox segments, playback and editing do not apply. A new transcript never replaces an older one with the same name: it gets <code>-2</code>, <code>-3</code> and so on.</td></tr>
+</table>
+<p>The <code>.txt</code> is written phrase by phrase while you record, with the time of each phrase, so a power cut loses at most the last phrase. The <code>.srt</code> subtitles are timed to the audio file, so a media player shows them in step with the recording. Only files the program registered itself are ever deleted automatically.</p>
+<h3>Privacy</h3>
+<ul>
+<li><b>Off the record</b>: pause the recording (<kbd>R</kbd>, the Record button, or <kbd>Ctrl+Alt+R</kbd> from any program). Nothing is recorded or transcribed until you resume; the transcript shows &ldquo;Off the record &hellip; nothing saved&rdquo; with the times.</li>
+<li><b>Bookmark</b> (<kbd>B</kbd> in the window, <kbd>Ctrl+Alt+K</kbd> from any program) marks a moment in the transcript, for example an action item.</li>
+<li><b>Mask numbers</b> replaces phone numbers, Hong Kong ID numbers, card numbers and e-mail addresses with placeholders in the transcript.</li>
+<li><b>Windows encryption</b> (EFS) makes new recordings and transcripts readable only by your Windows account. It needs Windows 11 Pro, Enterprise or Education and an NTFS drive. Back up your encryption certificate, or the files cannot be opened after Windows is reinstalled.</li>
+<li><b>Delete transcripts after</b> a number of days, if your organization keeps notes only for a limited time.</li>
+</ul>
+<h3>Better results</h3>
+<ul>
+<li><b>Names and terms</b> (Options &gt; Transcript &gt; Edit names) corrects names the recogniser gets wrong, for example people, companies and products.</li>
+<li>Choose <b>Chinese characters</b>: Traditional (Hong Kong), Traditional (Taiwan) or Simplified. Cantonese is written in colloquial Cantonese characters such as 係, 喺 and 嘅.</li>
+<li>Leave the language on <b>Automatic</b> for mixed English and Cantonese; choose one language only if the automatic choice keeps getting it wrong.</li>
+<li>For a final transcript, open the recording in <b>Secure Offline Transcriber</b> (Transcript &gt; Open in Secure Offline Transcriber): it can transcribe again with a larger model, and has proofreading and export to Word.</li>
+<li>Speech recognition makes mistakes, especially with background noise, people talking at once and unusual names. Check important passages against the audio before you rely on them.</li>
+</ul>
+<p class="note">The speech engine runs as a separate program at below-normal priority, so it never holds up the recording. On a slow PC the text may fall behind; the panel then says how many seconds, and the words-while-spoken preview pauses until it catches up.</p>
+
 <h2 id="play">Playback and transcription</h2>
 <ul>
 <li><b>Auto-backspace</b>: every time playback resumes after a pause it steps back 2 s (Options &gt; Playback).</li>
@@ -131,6 +175,7 @@
 <tr><td>Play / pause</td><td><kbd>Ctrl+Alt+P</kbd></td></tr><tr><td>Rewind / Fast forward (hold to scan)</td><td><kbd>Ctrl+Alt+B</kbd> / <kbd>Ctrl+Alt+F</kbd></td></tr>
 <tr><td>Vox on/off</td><td><kbd>Ctrl+Alt+V</kbd></td></tr><tr><td>In / Out mark</td><td><kbd>Ctrl+Alt+I</kbd> / <kbd>Ctrl+Alt+O</kbd></td></tr>
 <tr><td>Insert segment boundary</td><td><kbd>Ctrl+Alt+M</kbd></td></tr><tr><td>Show / hide window</td><td><kbd>Ctrl+Alt+H</kbd></td></tr>
+<tr><td>Bookmark in the live transcript</td><td><kbd>Ctrl+Alt+K</kbd></td></tr><tr><td>Caption bar on/off</td><td>not set (choose one in Options &gt; Hot-keys)</td></tr>
 </table>
 <p>Change them in <b>Options &gt; Hot-keys</b>. A key shown in red is already taken by another program. <b>Push-to-talk</b> records only while its key is held. On many European keyboards <kbd>Ctrl+Alt</kbd>+letter is AltGr; choose <kbd>Ctrl+Shift</kbd> or <kbd>Win</kbd> combinations there. A short beep confirms start/stop when the window is hidden.</p>
 
@@ -173,6 +218,9 @@ vrp record --layout split                       microphone left, computer audio 
 <tr><td>First words are cut off</td><td>Increase Pre-roll, or lower the threshold.</td></tr>
 <tr><td>⚠ on the disk line</td><td>The PC was too busy and some audio was lost. Choose a larger block size and "High" latency in Options &gt; Advanced.</td></tr>
 <tr><td>A hot-key shows "In use by another application"</td><td>Pick a different combination.</td></tr>
+<tr><td>Live transcript: &ldquo;The Live Transcript pack is not installed&rdquo; or &ldquo;incomplete&rdquo;</td><td>Extract the pack zip for this version again into the folder that holds <code>VoiceRecorderPro</code>, choosing Replace. Options &gt; Transcript &gt; <b>Check pack files</b> names any damaged file.</td></tr>
+<tr><td>Live transcript: text falls far behind</td><td>Untick <b>Show words while they are spoken</b>, close other heavy programs, or raise <b>Processor threads</b> (Options &gt; Transcript). The recording itself is not affected.</td></tr>
+<tr><td>Live transcript: wrong language or characters</td><td>Set <b>Language</b> and <b>Chinese characters</b> in Options &gt; Transcript; add names to <b>Names and terms</b>.</td></tr>
 <tr><td>Something else</td><td>Help &gt; Open Log Folder and look at <code>vrp.log</code>.</td></tr>
 </table>
 <p>Settings live in <code>%APPDATA%\VoiceRecorderPro\settings.json</code> (Options has Export/Import); logs in <code>%LOCALAPPDATA%\VoiceRecorderPro\Logs</code>. Put an empty file called <code>portable.flag</code> next to the program to keep settings and logs beside it instead.</p>

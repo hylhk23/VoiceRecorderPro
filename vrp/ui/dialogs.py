@@ -750,7 +750,10 @@ def about_body_html(libs: str) -> str:
             "<p>Uses Qt for Python (LGPL-3.0), PortAudio via sounddevice (MIT), WASAPI loopback via "
             "PyAudioWPatch (Apache-2.0), libsndfile via soundfile (LGPL-2.1 / BSD-3), LAME via lameenc (LGPL), "
             "RNNoise noise suppression (BSD-3), NumPy (BSD-3), soxr (LGPL-2.1), pyserial (BSD-3) and "
-            "hidapi (BSD). Licence texts are in THIRD-PARTY-LICENSES.txt.</p>")
+            "hidapi (BSD). The optional Live Transcript pack adds sherpa-onnx (Apache-2.0) with ONNX Runtime "
+            "(MIT), the SenseVoiceSmall speech model (FunASR Model License 1.1), Silero VAD (MIT) and "
+            "opencc-python-reimplemented (Apache-2.0); speech is recognised on this PC only. "
+            "Licence texts are in THIRD-PARTY-LICENSES.txt.</p>")
 
 
 def about_fine_print_html() -> str:

@@ -30,6 +30,12 @@ Noise suppression delays the microphone by a fixed amount, so computer audio and
 the untouched copy are delayed by the same amount and every file stays aligned.
 Vox hands out write operations by sample number; the recorder takes the same
 range of `out` and `raw` from short histories.
+
+Live transcript (1.1.0): every block written to the file is also handed to `tap`
+(file position, wall-clock time, file path), and `tap_close` is called when a file
+is finished, so the transcript follows the recording exactly, Vox pauses included.
+With save_audio off ("Text only"), a NullWriter stands in for the file: nothing is
+written to disk, but positions, segments and rollovers work as before.
 """
 from __future__ import annotations
 
@@ -48,7 +54,7 @@ from vrp import paths
 from vrp.core import dsp, metadata
 from vrp.core.audio_backend import AudioError, BaseBackend, DeviceInfo
 from vrp.core.cleanup import CleanChain, DelayLine, History
-from vrp.core.encoders import BaseWriter, WriterError, create_writer
+from vrp.core.encoders import BaseWriter, NullWriter, WriterError, create_writer
 from vrp.core.journal import Journal
 from vrp.core.model import SPLIT_ROLES, FormatSpec, Segment, iso_now, original_path
 from vrp.core.vox import VoxGate, VoxParams
@@ -81,6 +87,7 @@ class RecConfig:
     denoise: bool = False                 # 1.0.4: noise suppression on the microphone
     level: bool = False                   # 1.0.4: automatic level on the microphone
     keep_original: bool = True            # 1.0.4: also write an untouched copy when cleaning
+    save_audio: bool = True               # 1.1.0: False = live transcript "Text only"
 
     @staticmethod
     def from_settings(s, device_name: str = "") -> "RecConfig":
@@ -141,6 +148,8 @@ class Recorder:
         self.sys_q: queue.SimpleQueue = queue.SimpleQueue()
         self._sys_gen = 0
         self.blocksize, self.latency, self.exclusive = 1024, "high", False
+        self.tap: Callable | None = None          # 1.1.0: (block, file frame, rate, wall time, path)
+        self.tap_close: Callable | None = None    # 1.1.0: (path) when a file is finished
         self._reset_file_state()
         self.mode = MONITOR
 
@@ -408,7 +417,7 @@ class Recorder:
                 self.clean = chain
         d = self.clean.delay if self.clean is not None else 0
         self._sys_delay = DelayLine(d, ch) if d else None
-        self._keep_raw = self.clean is not None and cfg.keep_original
+        self._keep_raw = self.clean is not None and cfg.keep_original and cfg.save_audio
         self._raw_delay = DelayLine(d, fmt.channels) if (self._keep_raw and d) else None
         # `out` differs from `detect` only with the leveller, `raw` only with noise suppression
         lev = self.clean is not None and self.clean.level is not None
@@ -786,6 +795,7 @@ class Recorder:
             self._rollover(sample, roll)
             if self.writer is None:
                 return
+        file_frame, path = self.writer.segment_start(), self.writer.path
         try:
             self.writer.write(x)
         except OSError as exc:
@@ -800,6 +810,13 @@ class Recorder:
                 self.orig_writer.write(raw)
             except OSError as exc:
                 self._drop_original(exc)
+        tap = self.tap
+        if tap is not None and self.writer is not None and self.writer.path == path:
+            try:
+                tap(x, file_frame, self.cfg.fmt.rate, self._sample_time(sample), path)
+            except Exception:
+                log.exception("live transcript hand-over failed")
+                self.tap = None
 
     # -------------------------------------------------------------- files
     def _folder(self) -> str | None:
@@ -810,7 +827,9 @@ class Recorder:
             os.path.normcase(os.path.abspath(folder))
 
     def _open_file(self, path: str, append: bool = False) -> None:
-        w = create_writer(path, self.cfg.fmt, append=append)
+        if not self.cfg.save_audio:
+            append = False
+        w = create_writer(path, self.cfg.fmt, append=append) if self.cfg.save_audio else NullWriter(path, self.cfg.fmt)
         self.writer = w
         self.segments = list(w.existing_segments)
         if append and w.frames > 0 and not self.segments:
@@ -820,7 +839,7 @@ class Recorder:
         self.file_t0 = now
         self.file_key = self._time_key(now)
         self.file_started_iso = iso_now(datetime.fromtimestamp(now))
-        self.journal = Journal(path)
+        self.journal = Journal(path) if self.cfg.save_audio else None
         if self._keep_raw:
             self._open_original(path, append, w.frames)
         self._write_journal()
@@ -930,6 +949,7 @@ class Recorder:
                 metadata.write_sidecar(ow.path, segs, self.cfg.fmt.rate, self._orig_tags())
             if oj:
                 oj.close()
+            self._emit("orig_closed", ow.path)
         except Exception:
             log.exception("finalise failed for the untouched copy %s", ow.path)
             ow.abort()                     # its journal stays: it is offered for recovery
@@ -946,6 +966,11 @@ class Recorder:
             segs.pop()
         segs = segs or [Segment(0)]
         frames = w.frames
+        if self.tap_close is not None:
+            try:
+                self.tap_close(w.path)
+            except Exception:
+                log.exception("live transcript close failed")
         try:
             w.finalize(segs, self._tags())
             if self.cfg.sidecar:

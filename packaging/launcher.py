@@ -8,4 +8,6 @@ if not getattr(sys, "frozen", False):
 from vrp.app import main  # noqa: E402
 
 if __name__ == "__main__":
+    import multiprocessing
+    multiprocessing.freeze_support()          # the live-transcript worker process in a frozen build (1.1.0)
     sys.exit(main())

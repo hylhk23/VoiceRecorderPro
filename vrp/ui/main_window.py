@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import time
 
-from PySide6.QtCore import QSize, Qt, QUrl
+from PySide6.QtCore import QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QFont, QKeySequence, QShortcut
-from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QInputDialog,
-                               QLabel, QMainWindow, QMenu, QMessageBox, QProgressDialog, QPushButton,
-                               QSizePolicy, QSlider, QSystemTrayIcon, QToolButton, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QFileDialog, QFrame, QGridLayout, QHBoxLayout,
+                               QInputDialog, QLabel, QMainWindow, QMenu, QMessageBox, QProgressDialog, QPushButton,
+                               QSizePolicy, QSlider, QSplitter, QSystemTrayIcon, QToolButton, QVBoxLayout, QWidget)
 
 from vrp import APP_NAME, __version__, licence, paths, winutil
 from vrp.core.audiofile import UnsupportedFile, probe
@@ -22,9 +23,15 @@ from vrp.ui.dialogs import (FormatDialog, JoinDialog, PropertiesDialog, Schedule
                             TimedDialog)
 from vrp.ui.dialogs import AboutDialog, LicenceDialog
 from vrp.ui.taskbar import TaskbarBadge
+from vrp.ui.transcript_panel import CaptionBar, TranscriptPanel, colours, elide_left, is_dark, rolling_text
 from vrp.ui.widgets import LevelMeter, PositionSlider
 
 SPEEDS = (50, 75, 100, 125, 150, 200)
+LAYOUTS = (("both", "Both", "&Both Panels", "Ctrl+1", "Recorder and live transcript side by side"),
+           ("recorder", "Recorder", "&Recorder Only", "Ctrl+2", "Recorder only, with one line of the newest words"),
+           ("transcript", "Transcript", "&Transcript Only", "Ctrl+3",
+            "Live transcript only, with a small recording bar"))
+DEFAULT_SIZE = {"both": (940, 520), "transcript": (640, 480)}
 
 
 class InfoField(QLabel):
@@ -50,6 +57,9 @@ class MainWindow(QMainWindow):
         self._progress: QProgressDialog | None = None
         self._tray_hint_shown = False
         self._window_shortcuts: list[QShortcut] = []
+        self._layout_shown: str | None = None
+        self._caption: CaptionBar | None = None
+        self._rec_width = 0
         self.setWindowIcon(icons.app_icon())
         self._badge_kind: str | None = None
         self.badge = TaskbarBadge(self, icons.badge_image)
@@ -58,26 +68,37 @@ class MainWindow(QMainWindow):
         self._build_tray()
         self._connect()
         self.engine.ask_append = self._ask_append
-        self._apply_settings(set(self.settings.snapshot()))
-        self.settings.add_listener(self._apply_settings)
-        self.refresh_all()
         geo = self.settings.get("general.window_geometry")
         if geo:
             try:
                 x, y, w = (int(v) for v in geo.split(","))
                 self.move(x, y)
-                self.resize(w, self.height())
+                self._rec_width = w if 300 <= w <= 10000 else 0
             except ValueError:
                 pass
+        self._apply_settings(set(self.settings.snapshot()))
+        self.settings.add_listener(self._apply_settings)
+        self.refresh_all()
 
     # ===================================================================== UI
     def _build_ui(self) -> None:
         central = QWidget()
         self.setCentralWidget(central)
-        root = QVBoxLayout(central)
+        outer = QHBoxLayout(central)
+        outer.setContentsMargins(0, 0, 0, 0)
+        self.splitter = QSplitter(Qt.Horizontal)
+        self.splitter.setChildrenCollapsible(False)
+        outer.addWidget(self.splitter)
+        self.rec_panel = QWidget()
+        self.rec_panel.setObjectName("recorderPanel")
+        root = QVBoxLayout(self.rec_panel)
         root.setContentsMargins(10, 4, 10, 10)
         root.setSpacing(6)
         top = QHBoxLayout()
+        # layout switch for the recorder-only layout (the menu bar holds it in the others; 1.1.0)
+        self.layout_switch_inline, btns = self._make_switch()
+        self.layout_btns = [btns]
+        top.addWidget(self.layout_switch_inline)
         top.addStretch()
         self.fmt_btn = QToolButton()
         self.fmt_btn.setAutoRaise(True)
@@ -188,6 +209,25 @@ class MainWindow(QMainWindow):
             self.buttons[key] = b
         self.buttons["record"].setCheckable(True)
         root.addWidget(frame)
+        root.addStretch(1)
+        # recorder-only layout with the live transcript on: one rolling line of the newest words (1.1.0)
+        self.rolling = QLabel()
+        self.rolling.setAccessibleName("Newest words of the live transcript")
+        self.rolling.setFrameStyle(QFrame.StyledPanel | QFrame.Sunken)
+        self.rolling.setContentsMargins(6, 2, 6, 2)
+        self.rolling.setMinimumWidth(100)
+        self.rolling.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        self.rolling.setToolTip("Newest words of the live transcript (View > Both Panels shows all of it)")
+        self.rolling.hide()
+        root.addWidget(self.rolling)
+        self.splitter.addWidget(self.rec_panel)
+        self.transcript_panel = TranscriptPanel(self.engine, self.settings)
+        self.transcript_panel.openInSot.connect(self.open_in_sot)
+        self.transcript_panel.turnOn.connect(lambda: self.settings.set("lt.enabled", True))
+        self.splitter.addWidget(self.transcript_panel)
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 1)
+        self.transcript_panel.hide()
         self._update_icons()
         self.setMinimumWidth(300)
 
@@ -288,11 +328,37 @@ class MainWindow(QMainWindow):
         m.addSeparator()
         self._act(m, "T&imed Recording…", self.timed_recording, "Ctrl+Shift+T", key="timed")
         self._act(m, "Sche&dule…", self.schedule, "Ctrl+K")
+        # View (1.1.0)
+        m = mb.addMenu("&View")
+        grp = QActionGroup(self)
+        self.layout_actions = {}
+        for mode, _short, text, sc, _tip in LAYOUTS:
+            a = self._act(m, text, lambda _c=False, md=mode: self.set_layout(md), sc, checkable=True,
+                          key="layout_" + mode)
+            grp.addAction(a)
+            self.layout_actions[mode] = a
+        m.addSeparator()
+        self.caption_action = self._act(m, "&Caption Bar", lambda on: self.settings.set("ui.caption_bar", on),
+                                        checkable=True, key="caption_bar")
+        # Transcript (1.1.0)
+        m = mb.addMenu("Tra&nscript")
+        self._act(m, "&Live Transcript On", lambda on: self.settings.set("lt.enabled", on), checkable=True,
+                  key="lt_enabled")
+        m.addSeparator()
+        self._act(m, "&Bookmark", lambda: e.bookmark(), "B", key="lt_bookmark")
+        self._act(m, "&Off the Record (Pause)", lambda: e.record(), key="lt_off")
+        m.addAction(self.caption_action)
+        m.addSeparator()
+        self._act(m, "Open &Transcript", self.open_transcript, "Ctrl+Shift+N", key="lt_open")
+        self._act(m, "Open in &Secure Offline Transcriber", self.open_in_sot, key="lt_sot")
+        self._act(m, "Mark Checked and &Delete Audio…", self.mark_checked, key="lt_checked")
+        m.addSeparator()
+        self._act(m, "Transcript O&ptions…", lambda: self.ctl.open_options("Transcript"))
         # Options
         m = mb.addMenu("&Options")
         for text, tab in (("&Format…", "Format"), ("&Recording…", "Recording"), ("&Vox…", "Vox"),
                           ("&Hot-keys…", "Hot-keys"), ("E&xternal Devices…", "External devices"),
-                          ("&Sound Devices…", "Sound devices")):
+                          ("&Sound Devices…", "Sound devices"), ("Live &Transcript…", "Transcript")):
             self._act(m, text, lambda _c=False, t=tab: self.ctl.open_options(t))
         m.addSeparator()
         for text, key in (("&Disable Vox", "vox.disabled"), ("Hi&de Vox", "vox.hidden"),
@@ -311,6 +377,33 @@ class MainWindow(QMainWindow):
         m.addSeparator()
         self._act(m, "&Licence\u2026", self.licence_info, key="licence")
         self._act(m, "&About", self.about)
+        # layout switch at the right of the menu bar (1.1.0)
+        self.layout_switch, btns = self._make_switch()
+        self.layout_btns.append(btns)
+        mb.setCornerWidget(self.layout_switch, Qt.TopRightCorner)
+
+    def _make_switch(self) -> tuple[QWidget, dict]:
+        """Both | Recorder | Transcript: which panels the window shows."""
+        w = QWidget()
+        w.setObjectName("layoutSwitch")
+        hl = QHBoxLayout(w)
+        hl.setContentsMargins(0, 0, 6, 0)
+        hl.setSpacing(0)
+        group = QButtonGroup(w)
+        btns = {}
+        for mode, short, _text, sc, tip in LAYOUTS:
+            b = QToolButton()
+            b.setText(short)
+            b.setCheckable(True)
+            b.setAutoRaise(True)
+            b.setFocusPolicy(Qt.NoFocus)
+            b.setToolTip(f"{tip} ({sc})")
+            b.setAccessibleName("Show both panels" if mode == "both" else f"Show {short.lower()} only")
+            b.clicked.connect(lambda _c=False, md=mode: self.set_layout(md))
+            group.addButton(b)
+            btns[mode] = b
+            hl.addWidget(b)
+        return w, btns
 
     def _toggle_setting(self, key: str, on: bool) -> None:
         if key == "general.run_at_login":
@@ -401,6 +494,7 @@ class MainWindow(QMainWindow):
         e.editStarted.connect(self._edit_started)
         e.editProgress.connect(self._edit_progress)
         e.editFinished.connect(self._edit_finished)
+        e.transcriptChanged.connect(self.transcript_changed)
         self.vox_slider.valueChanged.connect(self._threshold_changed)
         self.vox_btn.clicked.connect(lambda: e.toggle_vox())
         self.src_mic.clicked.connect(lambda on: self.settings.set("rec.src_mic", bool(on)))
@@ -475,6 +569,14 @@ class MainWindow(QMainWindow):
             sp = s.get("play.speed")
             for v, a in self.speed_actions.items():
                 a.setChecked(v == sp)
+        if keys & {"lt.enabled", "ui.layout"}:
+            self._apply_layout()
+        if keys & {"ui.caption_bar", "lt.enabled"}:
+            self._apply_caption()
+        if "ui.caption_size" in keys and self._caption is not None:
+            self._caption.refresh()
+        if any(k.startswith("lt.") for k in keys):
+            self.transcript_panel.refresh()
         self.refresh_all()
 
     def _rebuild_window_shortcuts(self) -> None:
@@ -552,6 +654,18 @@ class MainWindow(QMainWindow):
         self.vox_slider.setEnabled(not self.settings.get("vox.disabled"))
         self.tray_vox.setChecked(e.vox_enabled())
         self.tray_actions["play"].setEnabled(has_file and not cap)
+        on = bool(self.settings.get("lt.enabled"))
+        A["lt_enabled"].setChecked(on)
+        A["lt_bookmark"].setEnabled(e.lt_active and st in (State.RECORDING, State.ARMED))
+        A["lt_off"].setEnabled(e.lt_active)
+        A["lt_off"].setText("Back &on the Record (Resume)" if st == State.REC_PAUSED else "&Off the Record (Pause)")
+        A["lt_open"].setEnabled(self._transcript_path() is not None)
+        audio = has_file and not cap and not busy and os.path.exists(f.path)
+        A["lt_sot"].setEnabled(audio)
+        A["lt_checked"].setEnabled(audio and e.kept_for_checking(f.path))
+        self.transcript_panel.refresh()
+        if self._caption is not None:
+            self._caption.refresh()
         # title
         name = os.path.basename(f.path) if f else "(no file)"
         mark = " [REC]" if st == State.RECORDING else " [VOX]" if st == State.ARMED else \
@@ -625,6 +739,7 @@ class MainWindow(QMainWindow):
             self.position.set_state(0, 0, 16000, [], None, False)
         # disk line
         self._update_disk_line(now)
+        self.transcript_panel.on_tick()
         if st == State.PLAYING or st == State.SEEKING:
             self.tray.setToolTip(f"{APP_NAME}: {STATE_LABEL[st]} {os.path.basename(f.path) if f else ''} "
                                  f"{fmt_duration(e.position / f.rate) if f else ''}")
@@ -709,7 +824,220 @@ class MainWindow(QMainWindow):
 
     def _save_geometry(self) -> None:
         g = self.geometry()
-        self.settings.set("general.window_geometry", f"{g.x()},{g.y()},{g.width()}")
+        mode = self._layout_shown or "recorder"
+        if mode == "recorder":
+            self._rec_width = g.width()
+        self.settings.set("general.window_geometry", f"{g.x()},{g.y()},{self._rec_width or g.width()}")
+        self._remember_size(mode)
+
+    # ================================================================ layouts (1.1.0)
+    def effective_layout(self) -> str:
+        """With the live transcript off the window is the recorder alone, as in 1.0."""
+        if not self.settings.get("lt.enabled"):
+            return "recorder"
+        mode = self.settings.get("ui.layout")
+        return mode if mode in ("both", "recorder", "transcript") else "both"
+
+    def set_layout(self, mode: str) -> None:
+        if not self.settings.get("lt.enabled") and mode != "recorder":
+            self.flash("Turn on the live transcript first (Transcript > Live Transcript On)")
+            self._sync_layout_controls("recorder")
+            return
+        self.settings.set("ui.layout", mode)
+
+    def _remember_size(self, mode: str) -> None:
+        if not self.isVisible() or self.isMinimized() or self.isMaximized():
+            return
+        sizes = dict(self.settings.get("ui.layout_widths") or {})
+        sizes[mode] = [self.width(), self.height()]
+        self.settings.set("ui.layout_widths", sizes)
+
+    def _stored_size(self, mode: str) -> tuple[int, int] | None:
+        v = (self.settings.get("ui.layout_widths") or {}).get(mode)
+        if isinstance(v, (list, tuple)) and len(v) == 2 and all(isinstance(x, int) for x in v) and \
+                300 <= v[0] <= 10000 and 150 <= v[1] <= 10000:
+            return int(v[0]), int(v[1])
+        return None
+
+    def _sync_layout_controls(self, mode: str) -> None:
+        on = bool(self.settings.get("lt.enabled"))
+        for btns in self.layout_btns:
+            for md, b in btns.items():
+                b.setChecked(md == mode)
+        for md, a in self.layout_actions.items():
+            a.setChecked(md == mode)
+            a.setEnabled(on or md == "recorder")
+        self.layout_switch.setVisible(on and mode != "recorder")
+        self.layout_switch_inline.setVisible(on and mode == "recorder")
+        self._style_switch()
+
+    def _style_switch(self) -> None:
+        c = colours(is_dark(self))
+        for w in (self.layout_switch, self.layout_switch_inline):
+            w.setStyleSheet(
+                f"QToolButton {{ padding: 2px 10px; border: 1px solid {c['accent']}; color: {c['text']}; }}"
+                f"QToolButton:checked {{ background-color: {c['me_bg']}; color: {c['me_fg']}; font-weight: 600; }}")
+
+    def _apply_layout(self) -> None:
+        mode = self.effective_layout()
+        on = bool(self.settings.get("lt.enabled"))
+        self._sync_layout_controls(mode)
+        self.rolling.setVisible(mode == "recorder" and on)
+        if mode == self._layout_shown:
+            return
+        old = self._layout_shown
+        if old is not None:
+            if old == "recorder" and self.isVisible():
+                self._rec_width = self.width()
+            self._remember_size(old)
+        self._layout_shown = mode
+        self.rec_panel.setVisible(mode != "transcript")
+        self.transcript_panel.setVisible(mode != "recorder")
+        self.transcript_panel.set_mini_bar(mode == "transcript")
+        if mode == "both":
+            self.splitter.setSizes([max(340, self.rec_panel.sizeHint().width()), 600])
+        size = self._stored_size(mode)
+        self.centralWidget().layout().activate()
+        if mode == "recorder":
+            w = (size[0] if size else 0) or self._rec_width or self.rec_panel.sizeHint().width()
+            self.setMinimumHeight(0)
+            self.resize(w, self.minimumSizeHint().height())
+            QTimer.singleShot(0, lambda: self._layout_shown == "recorder" and
+                              self.resize(self.width(), self.minimumSizeHint().height()))
+        else:
+            w, h = size or DEFAULT_SIZE[mode]
+            self.resize(w, h)
+        self.transcript_panel.refresh()
+        self.update_rolling()
+
+    def _apply_caption(self) -> None:
+        want = bool(self.settings.get("ui.caption_bar")) and bool(self.settings.get("lt.enabled"))
+        self.caption_action.setChecked(bool(self.settings.get("ui.caption_bar")))
+        self.caption_action.setEnabled(bool(self.settings.get("lt.enabled")))
+        if want and self._caption is None:
+            self._caption = CaptionBar(self.engine, self.settings)
+            self._caption.closed.connect(self._caption_closed)
+            self._caption.show()
+        elif not want and self._caption is not None:
+            cap, self._caption = self._caption, None
+            cap.closed.disconnect(self._caption_closed)
+            cap.close()
+            cap.deleteLater()
+
+    def _caption_closed(self) -> None:
+        self._caption = None
+        self.settings.set("ui.caption_bar", False)
+
+    def transcript_changed(self) -> None:
+        self.transcript_panel.refresh()
+        self.update_rolling()
+        if self._caption is not None:
+            self._caption.refresh()
+        A = self.actions_by_key
+        st = self.engine.state
+        A["lt_bookmark"].setEnabled(self.engine.lt_active and st in (State.RECORDING, State.ARMED))
+        A["lt_off"].setEnabled(self.engine.lt_active)
+
+    def update_rolling(self) -> None:
+        if not self.rolling.isVisible():
+            return
+        c = colours(is_dark(self))
+        sv = self.engine.transcriber
+        text = rolling_text(sv)
+        if not text:
+            text = "Live transcript: words appear here while you record" if not self.engine.lt_active else \
+                "Live transcript: listening\u2026"
+            self.rolling.setStyleSheet(f"color: {c['muted']};")
+        else:
+            self.rolling.setStyleSheet(f"color: {c['text']};")
+        self.rolling.setText(elide_left(self.rolling, text, self.rolling.width() - 14))
+
+    def resizeEvent(self, ev) -> None:
+        super().resizeEvent(ev)
+        if getattr(self, "rolling", None) is not None and self.rolling.isVisible():
+            self.update_rolling()
+
+    def changeEvent(self, ev) -> None:
+        super().changeEvent(ev)
+        if ev.type() == ev.Type.PaletteChange and getattr(self, "layout_switch", None) is not None:
+            self._style_switch()
+            self.transcript_panel.refresh()
+            self.update_rolling()
+
+    # ================================================================ transcript commands (1.1.0)
+    def _transcript_path(self) -> str | None:
+        """The transcript of the open recording, or of the last one recorded in Text only mode."""
+        e = self.engine
+        cands = []
+        if e.file is not None:
+            cands.append(os.path.splitext(e.file.path)[0] + ".txt")
+        last = getattr(e.transcriber, "last_txt", None)
+        if last:
+            cands.append(last)
+        for p in cands:
+            if p and os.path.exists(p):
+                return p
+        return None
+
+    def open_transcript(self) -> None:
+        p = self._transcript_path()
+        if p is None:
+            self.flash("No transcript for this recording")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(p))
+
+    def _sot_launcher(self, folder: str) -> tuple[str, str] | None:
+        py = os.path.join(folder, "python", "pythonw.exe")
+        app = os.path.join(folder, "app", "OfflineTranscriber.py")
+        if os.path.isfile(py) and os.path.isfile(app):
+            return py, app
+        return None
+
+    def open_in_sot(self) -> None:
+        f = self.engine.file
+        if f is None or self.engine.capturing or not os.path.exists(f.path):
+            self.flash("Open a recording first")
+            return
+        folder = self.settings.get("lt.sot_folder")
+        launcher = self._sot_launcher(folder) if folder else None
+        if launcher is None:
+            folder = QFileDialog.getExistingDirectory(
+                self, "Where is Secure Offline Transcriber? (the folder with run.bat)",
+                folder or os.path.dirname(str(paths.app_dir())))
+            if not folder:
+                return
+            launcher = self._sot_launcher(folder)
+            if launcher is None:
+                self.show_message("warning", "Secure Offline Transcriber",
+                                  "That folder does not hold Secure Offline Transcriber (python\\pythonw.exe and "
+                                  "app\\OfflineTranscriber.py were not found).")
+                return
+            self.settings.set("lt.sot_folder", folder)
+        py, app = launcher
+        try:
+            subprocess.Popen([py, app, f.path], cwd=folder, stdin=subprocess.DEVNULL,
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        except OSError as exc:
+            self.show_message("warning", "Secure Offline Transcriber", f"It could not be started: {exc}")
+            return
+        self.flash("Opened in Secure Offline Transcriber")
+
+    def mark_checked(self) -> None:
+        f = self.engine.file
+        if f is None or not self.engine.kept_for_checking(f.path):
+            self.flash("This recording is not one kept for checking")
+            return
+        r = QMessageBox.question(self, "Mark Checked and Delete Audio",
+                                 f"You have checked the transcript of {os.path.basename(f.path)}. Delete its audio "
+                                 "now? It is deleted for good, not moved to the Recycle Bin. The transcript stays.")
+        if r != QMessageBox.Yes:
+            return
+        ok, why = self.engine.mark_checked(f.path)
+        if ok:
+            self.flash("Audio deleted; the transcript stays")
+        else:
+            self.show_message("warning", "Mark Checked and Delete Audio", why)
+        self.refresh_all()
 
     def _confirm_exit(self) -> bool:
         if self.engine.capturing:

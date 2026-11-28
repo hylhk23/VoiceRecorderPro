@@ -10,7 +10,7 @@
   <a href="https://buymeacoffee.com/flyingturtle"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black" alt="Buy me a coffee"></a>
 </p>
 
-A voice-activated recorder for Windows 11 that captures your microphone **and** your computer's sound, so you can record Zoom and Microsoft Teams meetings for minutes. Keep both sides mixed in one track, or on separate left and right channels so transcription software can tell your voice from the other participants. New in 1.0.4: noise suppression and an automatic level for a clearer voice in a noisy office. Portable: unzip and run, no installation and no admin rights.
+A voice-activated recorder for Windows 11 that captures your microphone **and** your computer's sound, so you can record Zoom and Microsoft Teams meetings for minutes. Keep both sides mixed in one track, or on separate left and right channels so transcription software can tell your voice from the other participants. New in 1.1.0: a **live transcript** in English, Cantonese and Mandarin, recognised on your PC, with the choice to keep the audio, keep it only until you have checked the text, or save the text alone. Portable: unzip and run, no installation and no admin rights.
 
 **Free for personal use. Use at work needs a commercial licence** ([details](#licence-free-for-personal-use-licence-for-work)).
 
@@ -28,6 +28,7 @@ Voice Recorder Pro sits quietly in the system tray and records the conversations
 | --- | --- |
 | **Mic + computer audio in one file** | Both sides of a Zoom, Teams or Webex call, mixed into a single recording |
 | **Or on separate channels** | Your voice on the left, the other participants on the right, so transcription software can tell the two sides apart |
+| **Live transcript (new in 1.1.0)** | English, Cantonese and Mandarin, also mixed, shown as people speak and saved as text and subtitles. Recognised on your PC with the optional Live Transcript pack: no internet, no graphics card |
 | **Clearer voice in a noisy room** | Optional noise suppression and automatic level, with an untouched copy kept beside the cleaned file (new in 1.0.4) |
 | **Voice-activated** | Records only when sound is above your threshold, so long silences are not recorded |
 | **Portable** | Unzip and run `run.bat`. No installer, no admin rights |
@@ -42,6 +43,24 @@ Voice Recorder Pro sits quietly in the system tray and records the conversations
 > <a href="https://buymeacoffee.com/flyingturtle"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="45"></a>
 
 ---
+
+## What's new in 1.1.0
+
+**Live transcript.** See the words as they are spoken, in English, Cantonese and Mandarin, also mixed in one sentence, and save them beside the recording. Speech is recognised on your PC by the optional **Live Transcript pack** (a separate download, see [Install](#add-the-live-transcript-pack-optional)); nothing is sent over the internet and no graphics card is needed. Turn it on with **Transcript > Live Transcript On**.
+
+- **Choose what to save** (Options > Transcript): audio and text; text, with the audio kept for checking and deleted after a number of days (7 by default) or as soon as you choose **Transcript > Mark Checked and Delete Audio**; or **text only**, with no sound saved at all.
+- The transcript is saved as you go: a `.txt` with the time of each phrase, and `.srt` subtitles timed to the audio file. A power cut loses at most the last phrase.
+- **Me and Others.** With **Format > Channels > Separate**, your microphone is labelled *Me* and the computer audio *Others*, so you can see who said what in a Teams or Zoom call.
+- **Show both panels, or one.** The switch at the top right (or **View**, `Ctrl+1`, `Ctrl+2`, `Ctrl+3`) shows the recorder and the transcript side by side, the recorder alone with one line of the newest words, or the transcript alone with a small recording bar.
+- **Caption bar**: a small window that stays on top of your meeting, with the newest lines in large text.
+- **Bookmark** a moment (`B` in the window, `Ctrl+Alt+K` from any program); pause to go **off the record**: nothing is recorded or transcribed until you resume, and the transcript shows the gap.
+- Privacy options: mask phone, ID and card numbers and e-mail addresses in the transcript; encrypt new recordings and transcripts with Windows encryption (EFS); delete transcripts after a set number of days.
+- Better names: a **names and terms** list corrects names the recogniser gets wrong. Chinese can be written in Traditional (Hong Kong or Taiwan) or Simplified characters.
+- **Open in Secure Offline Transcriber** for a final transcript with a larger model, proofreading and export to Word.
+
+Speech recognition makes mistakes, especially with background noise and people talking at once: check important passages against the audio before you rely on them.
+
+**Also changed:** the level meters show sound above the Vox threshold in amber instead of magenta, which is easier to tell from the blue for people with red–green colour vision deficiency; the clip mark is outlined.
 
 ## What's new in 1.0.4
 
@@ -146,6 +165,24 @@ To add the Desktop and Start-menu shortcuts from the command line: `VoiceRecorde
 certutil -hashfile VoiceRecorderPro-portable-win64.zip SHA256
 ```
 
+### Add the Live Transcript pack (optional)
+The live transcript needs the speech pack, a separate zip on the same [Releases](https://github.com/hylhk23/VoiceRecorderPro/releases/latest) page: `VoiceRecorderPro-LiveTranscript-pack-win64.zip`. It must match the program version (1.1).
+
+1. Close Voice Recorder Pro (right-click the tray icon, **Exit**).
+2. Download the pack zip, right-click it, **Properties**, tick **Unblock**, **OK**.
+3. Extract it into the folder that holds your `VoiceRecorderPro` folder (the same place you extracted the program), so it merges into `VoiceRecorderPro`. Choose **Replace** if asked.
+4. Start the program and choose **Transcript > Live Transcript On**. **Options > Transcript** shows the pack and can check every file against its checksum.
+
+From the command line, in the same folder as Option 2 (close the program first):
+
+```bat
+cd %USERPROFILE%
+curl.exe -L -o VoiceRecorderPro-LiveTranscript-pack-win64.zip https://github.com/hylhk23/VoiceRecorderPro/releases/latest/download/VoiceRecorderPro-LiveTranscript-pack-win64.zip
+tar -xf VoiceRecorderPro-LiveTranscript-pack-win64.zip
+```
+
+The pack holds the open-source speech engine sherpa-onnx, the SenseVoiceSmall speech model and the Silero voice detector. It works offline and does not need a graphics card. To remove it, delete the `transcribe` folder inside `VoiceRecorderPro`.
+
 ### Add your licence (use at work)
 After you buy a commercial licence, you receive a licence file ending in `.key`. Copy it into the `VoiceRecorderPro` folder (the folder with `run.bat`), then open **Help > Licence** and choose **Check Again**, or restart the app. **Help > Licence** and **Help > About** then show your name.
 
@@ -187,6 +224,8 @@ Full help: press **F1** in the app, or open [`docs/HELP.html`](docs/HELP.html).
 | Microphone meter stays empty | Windows **Settings > Privacy & security > Microphone**: allow desktop apps to use the microphone. |
 | Computer meter stays empty | Make sure sound is playing on the Windows default output device (see the tip above). |
 | Noise suppression cannot be ticked | The noise-suppression library `vrp\lib\rnnoise.dll` is missing or could not be loaded. Download the portable zip again, unblock it (Option 1, step 2) and extract it again. |
+| Live transcript says the pack is not installed or incomplete | Extract the pack zip for this version again into the folder that holds `VoiceRecorderPro`, choosing **Replace**. **Options > Transcript > Check pack files** names any damaged file. |
+| The live transcript falls behind | Untick **Show words while they are spoken** in **Options > Transcript**, or close other heavy programs. The recording itself is not affected. |
 | **Help > Licence** says your licence file is not accepted | It says why. Use the `.key` file exactly as you received it, without editing it, and put it in the folder with `run.bat`. Then choose **Check Again**. |
 
 ---

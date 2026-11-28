@@ -30,6 +30,26 @@ user with compatible versions. Their source code is available at the addresses a
 
 MP3: the MP3 patents have expired; no licence is needed for MP3 encoding or decoding.
 
+Live Transcript pack (optional download, added in 1.1.0)
+--------------------------------------------------------
+The pack is a separate zip. It adds these components; their licence texts are in the pack's
+transcribe\LICENCES folder.
+
+Component                 Licence                         Source
+------------------------  ------------------------------  ------------------------------------------------
+sherpa-onnx 2.0.1         Apache-2.0                      https://github.com/k2-fsa/sherpa-onnx
+  ONNX Runtime            MIT                             https://github.com/microsoft/onnxruntime
+SenseVoiceSmall (int8     FunASR Model License 1.1        https://github.com/FunAudioLLM/SenseVoice
+  ONNX export by the                                      https://huggingface.co/csukuangfj/sherpa-onnx-
+  sherpa-onnx project)                                    sense-voice-zh-en-ja-ko-yue-2024-07-17
+Silero VAD (silero_vad.onnx) MIT                          https://github.com/snakers4/silero-vad
+opencc-python-             Apache-2.0                      https://github.com/yichen0831/opencc-python
+  reimplemented 0.1.7     (conversion tables from OpenCC, https://github.com/BYVoid/OpenCC
+                          Apache-2.0)
+
+The SenseVoiceSmall model is used unchanged, with its name and copyright notice kept, as the FunASR Model
+License 1.1 asks. Speech is recognised on the computer the program runs on; nothing is sent over the network.
+
 RNNoise (noise suppression, added in 1.0.4)
 -------------------------------------------
 vrp\lib\rnnoise.dll is built without changes from the official RNNoise 0.2 release

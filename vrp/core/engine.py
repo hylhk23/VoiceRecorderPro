@@ -19,7 +19,7 @@ from enum import Enum
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from vrp import __version__, winutil
+from vrp import __version__, paths, winutil
 from vrp.core import editor, journal, naming, scheduler
 from vrp.core.audio_backend import AudioError, BaseBackend, DeviceInfo
 from vrp.core.audiofile import UnsupportedFile, probe
@@ -33,6 +33,11 @@ from vrp.core.recorder import PAUSED as R_PAUSED
 from vrp.core.recorder import RECORDING as R_RECORDING
 from vrp.core.recorder import RecConfig, Recorder, open_error_message
 from vrp.settings import DEFAULT_FILE_PATTERN, Settings
+from vrp.transcribe import pack as lt_pack
+from vrp.transcribe import transcript as lt_transcript
+from vrp.transcribe.retention import AUDIO, Retention
+from vrp.transcribe.service import TranscriptionService, options_from_settings
+from vrp.transcribe.worker import WorkerHandle
 
 log = logging.getLogger(__name__)
 
@@ -69,6 +74,7 @@ class Engine(QObject):
     editProgress = Signal(float)
     editStarted = Signal(str)
     editFinished = Signal(str, str, str)   # label, status (ok|error|cancelled), message
+    transcriptChanged = Signal()           # 1.1.0: live transcript text or status changed
     _editDone = Signal(object)
 
     def __init__(self, settings: Settings, backend: BaseBackend, parent=None):
@@ -133,6 +139,16 @@ class Engine(QObject):
         self._save_timer.setSingleShot(True)
         self._save_timer.setInterval(1000)
         self._save_timer.timeout.connect(self.settings.save)
+        # live transcript (1.1.0)
+        self.retention = Retention(str(paths.config_dir() / "retention.json"))
+        self.transcriber = TranscriptionService(self.retention, worker_factory=WorkerHandle,
+                                                encrypt=winutil.efs_encrypt)
+        self._lt_save = ""                  # save mode of the recording in progress ("" = no transcript)
+        self._lt_files: set[str] = set()    # audio files recorded with the transcript on
+        self._text_only_files: set[str] = set()     # Text only recordings in progress (no audio file)
+        self._pack: lt_pack.PackStatus | None = None
+        self._encrypted_folders: set[str] = set()
+        self._last_sweep = 0.0
         settings.add_listener(self._on_settings)
         self._apply_player_settings()
 
@@ -144,9 +160,13 @@ class Engine(QObject):
             editor.cleanup_undo(str(self.settings.recordings_folder()))
         except Exception:
             pass
+        self._finish_transcripts()
+        self._sweep()
+        QTimer.singleShot(2000, self._lt_prewarm)
 
     def shutdown(self, timeout: float = 5.0) -> None:
         """Stop everything and finalise any open file (exit, log-off, shutdown)."""
+        self._closing = True
         self._timer.stop()
         if self.recorder.thread is not None:
             self.recorder.stop("exit")
@@ -155,6 +175,7 @@ class Engine(QObject):
                 time.sleep(0.05)
             self.recorder.close_input()
             self._drain_events()
+        self.transcriber.shutdown()
         self.player.close()
         winutil.keep_awake(False)
         if self._save_timer.isActive():
@@ -317,7 +338,8 @@ class Engine(QObject):
             pattern = DEFAULT_FILE_PATTERN
         rec = self.recorder
         dev = rec.device.name if (rec.mic_open and rec.device) else ("Computer audio" if rec.system_open else "")
-        p = naming.next_path(folder, pattern, self.recorder.cfg.fmt.ext, host=winutil.computer_name(),
+        ext = self.recorder.cfg.fmt.ext if self.recorder.cfg.save_audio else ".txt"     # 1.1.0 Text only
+        p = naming.next_path(folder, pattern, ext, host=winutil.computer_name(),
                              device=dev, tag=self.settings.get("rec.tag"),
                              name=self._overrides.get("name", "Schedule"))
         os.makedirs(p.parent, exist_ok=True)
@@ -346,6 +368,7 @@ class Engine(QObject):
             "source_system": lambda: self.toggle_source("system"),
             "mark_in": self.set_mark_in, "mark_out": self.set_mark_out, "extract": lambda: self.edit_extract(),
             "insert_boundary": self.insert_boundary, "new_recording": self.new_recording,
+            "bookmark": self.bookmark,
             "speed_down": lambda: self.change_speed(-5), "speed_up": lambda: self.change_speed(5),
             "volume_down": lambda: self.change_volume(-10), "volume_up": lambda: self.change_volume(10),
         }
@@ -370,8 +393,14 @@ class Engine(QObject):
             self.recorder.pause()
             self._set_state(State.REC_PAUSED)
             self._tone(False)
+            if self._lt_save:
+                self.transcriber.paused()            # shown as "Off the record" in the transcript
+                self.transcriptChanged.emit()
             return
         if st == State.REC_PAUSED:
+            if self._lt_save:
+                self.transcriber.resumed()
+                self.transcriptChanged.emit()
             self.recorder.resume()
             self._set_state(State.ARMED if self.recorder.cfg.vox_enabled else State.RECORDING)
             self._tone(True)
@@ -435,6 +464,7 @@ class Engine(QObject):
             cfg.vox_enabled = vox
         elif self._overrides.get("vox") in ("on", "off"):
             cfg.vox_enabled = self._overrides["vox"] == "on" and not self.settings.get("vox.disabled")
+        self._setup_transcript(cfg)
         rec = self.recorder
         if rec.input_open:
             same = rec.cfg.fmt == cfg.fmt and list(rec.cfg.channel_map) == list(cfg.channel_map)
@@ -467,6 +497,13 @@ class Engine(QObject):
         elif not sys_on and rec.system_open:
             rec.set_system(False)
         rec.cfg.vox_enabled = cfg.vox_enabled
+        rec.cfg.save_audio = cfg.save_audio
+        if self._lt_save:
+            rec.tap, rec.tap_close = self.transcriber.tap, self.transcriber.tap_close
+            if cfg.save_audio is False:
+                append = None                         # Text only never appends to an audio file
+        else:
+            rec.tap = rec.tap_close = None
         rec.start(append)
         self._rec_started = time.monotonic()
         self._overflow_base = rec.overflows
@@ -1072,6 +1109,11 @@ class Engine(QObject):
     # ================================================================ tick
     def _tick(self) -> None:
         self._drain_events()
+        if self.transcriber.worker is not None:
+            if self.transcriber.poll():
+                self.transcriptChanged.emit()
+            for level, text in self.transcriber.take_messages():
+                self._tell("lt_" + text[:40], "Live transcript", text, 60)
         now = time.monotonic()
         rec = self.recorder
         if self.state in CAPTURE and self.file is not None and self.file.recording:
@@ -1133,6 +1175,10 @@ class Engine(QObject):
                     self._set_state(State.REC_PAUSED)
         elif kind == "file_opened":
             _, path, fmt, segs, frames, appended = ev
+            if self._lt_save:
+                self._lt_files.add(path)
+            if not self.recorder.cfg.save_audio:
+                self._text_only_files.add(path)       # the "file" is the transcript name; no audio is written
             self.player.close()
             self.file = FileModel(path=path, codec=fmt.codec, rate=fmt.rate, channels=fmt.channels, frames=frames,
                                   size=os.path.getsize(path) if os.path.exists(path) else 0,
@@ -1143,7 +1189,8 @@ class Engine(QObject):
                                   segments=list(segs) or [], recording=True,
                                   tags={"VRP_CHANNELS": SPLIT_ROLES} if fmt.split else {})
             self.mark_in = self.mark_out = None
-            self.settings.add_recent(path)
+            if self.recorder.cfg.save_audio:
+                self.settings.add_recent(path)
             self.fileChanged.emit()
             self._selection_changed()
         elif kind == "segment":
@@ -1152,6 +1199,16 @@ class Engine(QObject):
                 self.fileChanged.emit()
         elif kind == "file_closed":
             _, path, frames, segs = ev
+            text_only = path in self._text_only_files
+            self._text_only_files.discard(path)
+            if not text_only:
+                self._audio_closed(path)
+            if text_only:
+                if self.file is not None and self.file.path == path:
+                    self.file = None                  # no audio was saved: nothing to play
+                    self._pos = 0
+                    self.fileChanged.emit()
+                return
             if self.file is not None and self.file.path == path:
                 try:
                     self.file = probe(path)
@@ -1161,8 +1218,15 @@ class Engine(QObject):
                 self._pos = self.file.frames
                 self.fileChanged.emit()
             self._after_command(path, frames, segs)
+        elif kind == "orig_closed":
+            self._audio_closed(ev[1])
         elif kind == "stopped":
             _, reason, path = ev
+            if self._lt_save:
+                self.transcriber.stop_session()
+                self._lt_save = ""
+                self.recorder.tap = self.recorder.tap_close = None
+                self.transcriptChanged.emit()
             self._stopping = False
             self._timed_end = None
             self._active_schedule = None
@@ -1173,7 +1237,7 @@ class Engine(QObject):
             if self.file is not None and self.file.recording:
                 self.file.recording = False
             self._set_state(State.STOPPED if self.file else State.IDLE)
-            if self.file:
+            if self.file and not self.file.recording:
                 self._pos = self.file.frames
             self.fileChanged.emit()
             if self._pending_schedule is not None:
@@ -1276,6 +1340,8 @@ class Engine(QObject):
         if self._device_lost_at is not None:
             self._retry_device()
         self._check_schedules()
+        if now - self._last_sweep >= 600:
+            self._sweep()
 
     @property
     def overflow_count(self) -> int:
@@ -1419,9 +1485,14 @@ class Engine(QObject):
                                                           "rec.system_gain_db")) for k in keys):
             rec = self.recorder
             cfg = RecConfig.from_settings(self.settings, rec.cfg.tags.get("device", ""))
+            cfg.save_audio = rec.cfg.save_audio           # fixed for the recording in progress
             self.recorder.update_config(cfg)
         if keys & {"rec.src_mic", "rec.src_system"} and self.recorder.input_open:
             self._apply_sources()
+        if any(k.startswith("lt.") for k in keys):
+            self._pack = None
+            self._lt_prewarm()
+            self.transcriptChanged.emit()
         if any(k.startswith("dev.") for k in keys):
             self.player.set_device(self.output_device())
             if self.recorder.input_open and not self.capturing:
@@ -1429,6 +1500,139 @@ class Engine(QObject):
                 self.recorder.close_input()
                 if was:
                     self.monitor(True)
+
+    # ---------------------------------------------------------- live transcript (1.1.0)
+    def lt_pack_status(self, refresh: bool = False) -> lt_pack.PackStatus:
+        if self._pack is None or refresh:
+            self._pack = lt_pack.status()
+        return self._pack
+
+    @property
+    def lt_active(self) -> bool:
+        """A recording with the live transcript is in progress."""
+        return bool(self._lt_save) and self.transcriber.active
+
+    def lt_wanted(self) -> bool:
+        return bool(self.settings.get("lt.enabled")) and self.lt_pack_status().ok
+
+    def _lt_prewarm(self) -> None:
+        """With the live transcript on, the speech engine loads in the background before the first recording;
+        turned off, its memory is freed."""
+        if getattr(self, "_closing", False):
+            return
+        try:
+            if self.lt_wanted():
+                self.transcriber.prewarm(options_from_settings(self.settings), self.lt_pack_status())
+            else:
+                self.transcriber.release()
+        except Exception:
+            log.exception("speech engine pre-load failed")
+
+    def _setup_transcript(self, cfg: RecConfig) -> None:
+        """Decide, as a recording starts, whether it is transcribed and what is saved."""
+        self._lt_save = ""
+        cfg.save_audio = True
+        if self.settings.get("lt.encrypt"):
+            self._encrypt_folder(str(self.settings.recordings_folder()))
+        if not self.settings.get("lt.enabled"):
+            return
+        st = self.lt_pack_status(refresh=True)
+        if not st.ok:
+            self._tell("lt_pack", "Live transcript", f"{st.reason} Recording without a transcript.", 600)
+            return
+        opts = options_from_settings(self.settings)
+        try:
+            self.transcriber.start_session(opts, st, cfg.fmt.split)
+        except Exception as exc:
+            log.exception("live transcript could not start")
+            self._tell("lt_start", "Live transcript", f"The live transcript could not start ({exc}). "
+                                                      "Recording without it.", 60)
+            return
+        self._lt_save = opts["save"]
+        cfg.save_audio = opts["save"] != "text_only"
+        self.transcriptChanged.emit()
+
+    def bookmark(self) -> None:
+        if not self.lt_active:
+            self._tell("lt_bookmark", "Bookmark", "Bookmarks are added to the live transcript while recording "
+                                                  "with it on (Options > Transcript).", 30)
+            return
+        self.transcriber.bookmark()
+        self.transcriptChanged.emit()
+
+    def _encrypt_folder(self, folder: str) -> None:
+        if folder in self._encrypted_folders:
+            return
+        self._encrypted_folders.add(folder)
+        os.makedirs(folder, exist_ok=True)
+        ok, why = winutil.efs_encrypt(folder)
+        if not ok:
+            self._tell("efs", "Encryption", f"Windows encryption could not be turned on for {folder}: {why}. "
+                                            "Recordings and transcripts there are saved without it.", 3600)
+
+    def _audio_closed(self, path: str) -> None:
+        if not os.path.exists(path):
+            return
+        if self.settings.get("lt.encrypt"):
+            ok, why = winutil.efs_encrypt(path)
+            if not ok:
+                log.warning("could not encrypt %s: %s", path, why)
+        stem = os.path.splitext(path)[0]
+        ours = path in self._lt_files or any(stem.startswith(os.path.splitext(f)[0] + "-original")
+                                             for f in self._lt_files)
+        if ours and self.transcriber.opts.get("save") == "text_check":
+            self.transcriber.audio_closed(path)        # deleted after the set number of days
+
+    def kept_for_checking(self, path: str | None) -> bool:
+        return bool(path) and bool(self.retention.find(path, AUDIO))
+
+    def mark_checked(self, path: str) -> tuple[bool, str]:
+        """Delete the audio kept for checking now (the transcript stays)."""
+        items = self.retention.find(path, AUDIO)
+        if not items:
+            return False, "This recording is not one kept for checking."
+        base = os.path.splitext(path)[0]
+        others = [it["path"] for it in self.retention.items if it["kind"] == AUDIO and
+                  os.path.splitext(it["path"])[0].startswith(base + "-original")]
+        if self.file is not None and self.file.path == path:
+            self.close_file()
+        errors = []
+        for p in [path] + others:
+            try:
+                if os.path.exists(paths.longpath(p)):
+                    os.remove(paths.longpath(p))
+                self.retention.remove(p)
+            except OSError as exc:
+                errors.append(f"{os.path.basename(p)}: {exc}")
+        if errors:
+            return False, "Not all files could be deleted: " + "; ".join(errors)
+        log.info("audio kept for checking deleted after checking: %s", path)
+        return True, ""
+
+    def _sweep(self) -> None:
+        self._last_sweep = time.monotonic()
+
+        def busy(p):
+            return (self.file is not None and os.path.normcase(self.file.path) == os.path.normcase(p)) or \
+                (self.recorder.status.get("path") or "") == p
+        try:
+            done = self.retention.sweep(busy=busy)
+        except Exception:
+            log.exception("retention sweep failed")
+            return
+        gone = [p for p, why in done if not why]
+        if gone:
+            self._tell("sweep", "Files deleted", f"{len(gone)} file(s) kept for a set number of days were deleted, "
+                                                 "as set in Options > Transcript.", 3600)
+
+    def _finish_transcripts(self) -> None:
+        """Transcripts left unfinished by a crash: write their subtitles and remove the journals."""
+        folders = {str(self.settings.recordings_folder()), str(self.settings.fallback_folder())}
+        for j in lt_transcript.find_journals(sorted(folders)):
+            try:
+                lt_transcript.recover(j)
+            except Exception:
+                log.exception("could not finish transcript %s", j)
 
     # ------------------------------------------------------------------ tones
     def _tone(self, start: bool) -> None:
