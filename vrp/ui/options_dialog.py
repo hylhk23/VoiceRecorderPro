@@ -1017,8 +1017,8 @@ class OptionsDialog(QDialog):
         for value, text, note in (
                 ("audio_text", "Audio and text", "The recording and its transcript are both kept."),
                 ("text_check", "Text, with audio kept for checking",
-                 "The audio is deleted automatically after the days set below, or when you choose Transcript > "
-                 "Mark Checked and Delete Audio."),
+                 "The audio goes to the Recycle Bin automatically after the days set below, or when you choose "
+                 "Transcript > Mark Checked and Delete Audio."),
                 ("text_only", "Text only",
                  "No sound is saved at all: only the transcript (.txt). Vox, segments and editing need audio, "
                  "so they do not apply.")):
@@ -1031,7 +1031,7 @@ class OptionsDialog(QDialog):
             lab.setWordWrap(True)
             lab.setContentsMargins(24, 0, 0, 4)
             gl.addWidget(lab)
-        self.lt_keep = self._spin("lt.keep_days", 1, 90, " days")
+        self.lt_keep = self._spin("lt.keep_days", 1, 365, " days")
         gl.addWidget(_row(QLabel("Keep audio for checking for:"), self.lt_keep))
         gl.addWidget(self._check("lt.files_srt", "Also save subtitles (.srt) next to the audio"))
 
@@ -1059,7 +1059,9 @@ class OptionsDialog(QDialog):
         if not winutil.IS_WINDOWS:
             enc.setEnabled(False)
         gf.addRow(self._check("lt.mask", "Mask phone, ID and card numbers and e-mail addresses in the transcript"))
-        gf.addRow("Delete transcripts after:", _row(self._spin("lt.delete_days", 0, 3650, " days", special="Never")))
+        dd = self._spin("lt.delete_days", 0, 3650, " days", special="Never")
+        dd.setToolTip("Transcripts (.txt and .srt) older than this go to the Recycle Bin.")
+        gf.addRow("Delete transcripts after:", _row(dd))
         off = QLabel("Off the record: pause the recording (R, or the global hot-key Ctrl+Alt+R by default). "
                      "Nothing is recorded or transcribed until you resume; the transcript shows where the "
                      "pause was.")

@@ -24,7 +24,7 @@
 </style>
 </head>
 <body><main>
-<h1>Voice Recorder Pro 1.1.0</h1>
+<h1>Voice Recorder Pro 1.1.1</h1>
 <p class="lead">A voice-activated sound recorder for Windows 11: it records only while someone is speaking, writes straight to disk, and lets you play, mark and cut recordings without another editor.</p>
 <nav><a href="#start">Getting started</a><a href="#window">Main window</a><a href="#vox">Vox</a><a href="#files">Files</a><a href="#cleanup">Clean-up</a><a href="#transcript">Live transcript</a><a href="#play">Playback</a><a href="#edit">Editing</a><a href="#hotkeys">Hot-keys</a><a href="#external">Pedals &amp; devices</a><a href="#schedule">Schedules</a><a href="#cli">Command line</a><a href="#trouble">Troubleshooting</a><a href="#licence">Licence</a></nav>
 
@@ -102,7 +102,7 @@
 <p>Clean-up applies to the microphone only, from the next recording. Vox listens after noise suppression, so steady noise no longer starts a recording; it listens before the automatic level, so the threshold keeps its meaning. Noise suppression delays the recording by about 0.2&nbsp;s; computer audio is delayed with it, so the two stay in step. The file's tags say what clean-up was applied.</p>
 <p>Best results still come from the microphone: put it close to the people speaking, turn Vox off for meetings, and use a higher MP3 bitrate (64 kbit/s) or WAV/FLAC.</p>
 
-<h2 id="transcript">Live transcript (new in 1.1.0)</h2>
+<h2 id="transcript">Live transcript (new in 1.1)</h2>
 <p>Voice Recorder Pro can show the words as they are spoken, in <b>English, Cantonese and Mandarin</b>, also mixed in one sentence, and save them as text beside the recording. Speech is recognised on your PC by the free <b>Live Transcript pack</b>; nothing is sent over the internet, and no graphics card is needed.</p>
 <h3>Set it up</h3>
 <ol>
@@ -124,17 +124,17 @@
 <table>
 <tr><th>Choice</th><th>Files</th></tr>
 <tr><td>Audio and text</td><td>The recording (for example <code>VOX20261128-001.mp3</code>), its transcript <code>VOX20261128-001.txt</code> and subtitles <code>VOX20261128-001.srt</code>.</td></tr>
-<tr><td>Text, with audio kept for checking (default)</td><td>The same files, but the audio is deleted automatically after the number of days you set (7 by default), or when you choose <b>Transcript &gt; Mark Checked and Delete Audio</b>. The audio is deleted for good, not moved to the Recycle Bin. The transcript stays.</td></tr>
+<tr><td>Text, with audio kept for checking (default)</td><td>The same files, but the audio is moved to the Recycle Bin automatically after the number of days you set (30 by default, up to 365), or when you choose <b>Transcript &gt; Mark Checked and Delete Audio</b>. The transcript stays. Empty the Recycle Bin when you want the audio gone for good.</td></tr>
 <tr><td>Text only</td><td>Only the <code>.txt</code>. No sound is saved at all, so Vox segments, playback and editing do not apply. A new transcript never replaces an older one with the same name: it gets <code>-2</code>, <code>-3</code> and so on.</td></tr>
 </table>
-<p>The <code>.txt</code> is written phrase by phrase while you record, with the time of each phrase, so a power cut loses at most the last phrase. The <code>.srt</code> subtitles are timed to the audio file, so a media player shows them in step with the recording. Only files the program registered itself are ever deleted automatically.</p>
+<p>The <code>.txt</code> is written phrase by phrase while you record, with the time of each phrase, so a power cut loses at most the last phrase. The panel follows the newest line, with an empty line below it; scroll up to read earlier text, and it stays where you are until you scroll back to the bottom. The <code>.srt</code> subtitles are timed to the audio file, so a media player shows them in step with the recording. Only files the program registered itself are ever moved to the Recycle Bin automatically. On a network drive Windows has no Recycle Bin, so files there are deleted at once, as with <b>File &gt; Delete File</b>.</p>
 <h3>Privacy</h3>
 <ul>
 <li><b>Off the record</b>: pause the recording (<kbd>R</kbd>, the Record button, or <kbd>Ctrl+Alt+R</kbd> from any program). Nothing is recorded or transcribed until you resume; the transcript shows &ldquo;Off the record &hellip; nothing saved&rdquo; with the times.</li>
 <li><b>Bookmark</b> (<kbd>B</kbd> in the window, <kbd>Ctrl+Alt+K</kbd> from any program) marks a moment in the transcript, for example an action item.</li>
 <li><b>Mask numbers</b> replaces phone numbers, Hong Kong ID numbers, card numbers and e-mail addresses with placeholders in the transcript.</li>
 <li><b>Windows encryption</b> (EFS) makes new recordings and transcripts readable only by your Windows account. It needs Windows 11 Pro, Enterprise or Education and an NTFS drive. Back up your encryption certificate, or the files cannot be opened after Windows is reinstalled.</li>
-<li><b>Delete transcripts after</b> a number of days, if your organization keeps notes only for a limited time.</li>
+<li><b>Delete transcripts after</b> a number of days, if your organization keeps notes only for a limited time. They go to the Recycle Bin.</li>
 </ul>
 <h3>Better results</h3>
 <ul>

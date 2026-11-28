@@ -96,7 +96,7 @@ def save_text(settings) -> str:
     if mode == "text_only":
         s = "Text only: no sound is being saved"
     elif mode == "text_check":
-        s = f"Saving text, plus audio for checking (deleted after {settings.get('lt.keep_days')} days)"
+        s = f"Saving text, plus audio for checking (to the Recycle Bin after {settings.get('lt.keep_days')} days)"
     else:
         s = "Saving audio and text"
     if settings.get("lt.encrypt"):
@@ -261,6 +261,13 @@ class TranscriptPanel(QWidget):
         self.body.setMinimumHeight(140)
         self.body.setFocusPolicy(Qt.NoFocus)      # the arrow keys stay rewind / fast forward
         self.body.document().setMaximumBlockCount(20000)
+        # 1.1.1: the text follows the newest line, with one empty line below it, unless the user has
+        # scrolled up to read; scrolling back to the bottom follows again
+        self._follow = True
+        bar = self.body.verticalScrollBar()
+        bar.rangeChanged.connect(self._range_changed)
+        bar.valueChanged.connect(self._scrolled)
+        self._bottom_space()
         lay.addWidget(self.body, 1)
         self.provisional = QLabel()
         self.provisional.setWordWrap(True)
@@ -348,9 +355,31 @@ class TranscriptPanel(QWidget):
         self.provisional.setVisible(bool(ptxt))
         self.refresh_buttons()
 
+    def _bottom_space(self) -> None:
+        """One empty line below the newest text, so it never sits on the bottom edge."""
+        doc = self.body.document()
+        fmt = doc.rootFrame().frameFormat()
+        fmt.setBottomMargin(QFontMetrics(self.body.font()).lineSpacing() + doc.documentMargin())
+        doc.rootFrame().setFrameFormat(fmt)
+
+    def _range_changed(self, _lo: int, hi: int) -> None:
+        # the text grew, or the text area got smaller (the words-in-progress line appeared): stay at the end
+        if self._follow:
+            self.body.verticalScrollBar().setValue(hi)
+
+    def _scrolled(self, value: int) -> None:
+        self._follow = value >= self.body.verticalScrollBar().maximum() - 4
+
+    def scroll_to_end(self) -> None:
+        self._follow = True
+        bar = self.body.verticalScrollBar()
+        bar.setValue(bar.maximum())
+
     def _update_body(self, sv, c: dict, on: bool) -> None:
         """Append the entries added since the last call; start again for a new recording or theme."""
         if self._session != sv.started_at or self._shown > sv.added or self._reordered != sv.reordered:
+            if self._session != sv.started_at:
+                self._follow = True                  # a new recording: follow it
             self._session = sv.started_at
             self._reordered = sv.reordered
             self._shown = 0
@@ -359,23 +388,28 @@ class TranscriptPanel(QWidget):
             want = "Words appear here while you record." if on else ""
             if self._placeholder != want:
                 self.body.setHtml(f'<p style="color:{c["muted"]};">{want}</p>')
+                self._bottom_space()
                 self._placeholder = want
             return
         new = sv.added - self._shown
         if new <= 0:
             return
         bar = self.body.verticalScrollBar()
-        at_end = bar.value() >= bar.maximum() - 4
-        if self._shown == 0 or self._placeholder is not None or new > len(sv.entries):
+        follow, value = self._follow, bar.value()
+        redraw = self._shown == 0 or self._placeholder is not None or new > len(sv.entries)
+        if redraw:
             self.body.clear()
+            self._bottom_space()
             self._placeholder = None
             new = len(sv.entries)
-            at_end = True
         for ent in sv.entries[-new:]:
             self.body.append(entry_html(ent, c))
         self._shown = sv.added
-        if at_end:
+        self._follow = follow
+        if follow:
             bar.setValue(bar.maximum())
+        elif redraw:
+            bar.setValue(value)                      # the reader keeps their place
 
     def refresh_buttons(self) -> None:
         e = self.engine

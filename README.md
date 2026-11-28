@@ -10,7 +10,7 @@
   <a href="https://buymeacoffee.com/flyingturtle"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=flat-square&logo=buy-me-a-coffee&logoColor=black" alt="Buy me a coffee"></a>
 </p>
 
-A voice-activated recorder for Windows 11 that captures your microphone **and** your computer's sound, so you can record Zoom and Microsoft Teams meetings for minutes. Keep both sides mixed in one track, or on separate left and right channels so transcription software can tell your voice from the other participants. New in 1.1.0: a **live transcript** in English, Cantonese and Mandarin, recognised on your PC, with the choice to keep the audio, keep it only until you have checked the text, or save the text alone. Portable: unzip and run, no installation and no admin rights.
+A voice-activated recorder for Windows 11 that captures your microphone **and** your computer's sound, so you can record Zoom and Microsoft Teams meetings for minutes. Keep both sides mixed in one track, or on separate left and right channels so transcription software can tell your voice from the other participants. New in 1.1: a **live transcript** in English, Cantonese and Mandarin, recognised on your PC, with the choice to keep the audio, keep it only until you have checked the text, or save the text alone. Portable: unzip and run, no installation and no admin rights.
 
 **Free for personal use. Use at work needs a commercial licence** ([details](#licence-free-for-personal-use-licence-for-work)).
 
@@ -28,7 +28,7 @@ Voice Recorder Pro sits quietly in the system tray and records the conversations
 | --- | --- |
 | **Mic + computer audio in one file** | Both sides of a Zoom, Teams or Webex call, mixed into a single recording |
 | **Or on separate channels** | Your voice on the left, the other participants on the right, so transcription software can tell the two sides apart |
-| **Live transcript (new in 1.1.0)** | English, Cantonese and Mandarin, also mixed, shown as people speak and saved as text and subtitles. Recognised on your PC with the optional Live Transcript pack: no internet, no graphics card |
+| **Live transcript (new in 1.1)** | English, Cantonese and Mandarin, also mixed, shown as people speak and saved as text and subtitles. Recognised on your PC with the optional Live Transcript pack: no internet, no graphics card |
 | **Clearer voice in a noisy room** | Optional noise suppression and automatic level, with an untouched copy kept beside the cleaned file (new in 1.0.4) |
 | **Voice-activated** | Records only when sound is above your threshold, so long silences are not recorded |
 | **Portable** | Unzip and run `run.bat`. No installer, no admin rights |
@@ -44,17 +44,17 @@ Voice Recorder Pro sits quietly in the system tray and records the conversations
 
 ---
 
-## What's new in 1.1.0
+## What's new in 1.1.1
 
-**Live transcript.** See the words as they are spoken, in English, Cantonese and Mandarin, also mixed in one sentence, and save them beside the recording. Speech is recognised on your PC by the optional **Live Transcript pack** (a separate download, see [Install](#add-the-live-transcript-pack-optional)); nothing is sent over the internet and no graphics card is needed. Turn it on with **Transcript > Live Transcript On**.
+**Live transcript** (the first release with it). See the words as they are spoken, in English, Cantonese and Mandarin, also mixed in one sentence, and save them beside the recording. Speech is recognised on your PC by the optional **Live Transcript pack** (a separate download, see [Install](#add-the-live-transcript-pack-optional)); nothing is sent over the internet and no graphics card is needed. Turn it on with **Transcript > Live Transcript On**.
 
-- **Choose what to save** (Options > Transcript): audio and text; text, with the audio kept for checking and deleted after a number of days (7 by default) or as soon as you choose **Transcript > Mark Checked and Delete Audio**; or **text only**, with no sound saved at all.
+- **Choose what to save** (Options > Transcript): audio and text; text, with the audio kept for checking and moved to the Recycle Bin after a number of days (30 by default, up to 365) or as soon as you choose **Transcript > Mark Checked and Delete Audio**; or **text only**, with no sound saved at all.
 - The transcript is saved as you go: a `.txt` with the time of each phrase, and `.srt` subtitles timed to the audio file. A power cut loses at most the last phrase.
 - **Me and Others.** With **Format > Channels > Separate**, your microphone is labelled *Me* and the computer audio *Others*, so you can see who said what in a Teams or Zoom call.
 - **Show both panels, or one.** The switch at the top right (or **View**, `Ctrl+1`, `Ctrl+2`, `Ctrl+3`) shows the recorder and the transcript side by side, the recorder alone with one line of the newest words, or the transcript alone with a small recording bar.
 - **Caption bar**: a small window that stays on top of your meeting, with the newest lines in large text.
 - **Bookmark** a moment (`B` in the window, `Ctrl+Alt+K` from any program); pause to go **off the record**: nothing is recorded or transcribed until you resume, and the transcript shows the gap.
-- Privacy options: mask phone, ID and card numbers and e-mail addresses in the transcript; encrypt new recordings and transcripts with Windows encryption (EFS); delete transcripts after a set number of days.
+- Privacy options: mask phone, ID and card numbers and e-mail addresses in the transcript; encrypt new recordings and transcripts with Windows encryption (EFS); move transcripts to the Recycle Bin after a set number of days.
 - Better names: a **names and terms** list corrects names the recogniser gets wrong. Chinese can be written in Traditional (Hong Kong or Taiwan) or Simplified characters.
 - **Open in Secure Offline Transcriber** for a final transcript with a larger model, proofreading and export to Word.
 

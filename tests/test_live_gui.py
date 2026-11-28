@@ -137,6 +137,26 @@ def test_mark_checked_deletes_audio_keeps_text(qapp, ctl, tmp_path, monkeypatch)
     w.mark_checked()
     assert not os.path.exists(path) and os.path.exists(os.path.splitext(path)[0] + ".txt")
     assert not e.retention.find(path) and e.file is None
+    # 1.1.1: to the Recycle Bin, not deleted for good (on Linux the tests' stand-in is a .trash folder)
+    trash = os.path.join(os.path.dirname(path), ".trash")
+    assert any(n.endswith(os.path.basename(path)) for n in os.listdir(trash))
+
+
+def test_due_files_go_to_the_recycle_bin(qapp, ctl, tmp_path):
+    """1.1.1: audio kept for checking and transcripts past their days go to the Recycle Bin; 30 days by default."""
+    from vrp.transcribe.retention import AUDIO, TEXT
+    e = ctl.engine
+    assert ctl.settings.get("lt.keep_days") == 30
+    folder = tmp_path / "rec"
+    folder.mkdir(exist_ok=True)
+    audio, text = folder / "old.mp3", folder / "old.txt"
+    for f in (audio, text):
+        f.write_bytes(b"x")
+    e.retention.add(str(audio), AUDIO, 30, now=0)
+    e.retention.add(str(text), TEXT, 365, now=0)
+    e._sweep()
+    assert not audio.exists() and not text.exists() and not e.retention.items
+    assert sorted(n.split("_", 1)[1] for n in os.listdir(folder / ".trash")) == ["old.mp3", "old.txt"]
 
 
 def test_text_only_saves_no_sound(qapp, ctl, tmp_path):
@@ -251,6 +271,7 @@ def test_options_transcript_tab(qapp, ctl):
     lang.setCurrentIndex(lang.findData("yue"))
     [r for r in page.findChildren(QRadioButton) if r.text() == "Text only"][0].setChecked(True)
     assert not d.lt_keep.isEnabled()                                # days apply only to "kept for checking"
+    assert (d.lt_keep.minimum(), d.lt_keep.maximum(), d.lt_keep.value()) == (1, 365, 30)
     d._lt_names = [{"heard": "neo", "correct": "Neo"}]
     assert d.apply()
     s = ctl.settings
@@ -332,3 +353,47 @@ def test_speaker_tags_differ_in_shape():
     others = entry_html(Entry("text", 0, 1, speaker="others", text="x"), c)
     assert "background-color:#0067c0" in me and "&lt;hi&gt;" in me              # filled tag, text escaped
     assert "background-color" not in others.split("Others")[0].split("<span")[-1]  # plain bold text
+
+
+def test_newest_line_stays_in_view(qapp, ctl):
+    """Regression (owner's test on Windows, 1.1.0): the newest line was hidden below the bottom edge, mostly
+    when the words-in-progress line appeared under the text and made the text area smaller. The text now
+    follows the newest line with one empty line below it, unless the user has scrolled up."""
+    import time
+
+    from vrp.transcribe.transcript import Entry
+    w, e = ctl.window, ctl.engine
+    ctl.settings.set("ui.layout", "transcript")
+    pump(qapp, 0.1)
+    p, sv = w.transcript_panel, e.transcriber
+    sv.started_at = time.time()
+    line = p.body.fontMetrics().lineSpacing()
+
+    def add(n):
+        for k in range(n):
+            sv._add(Entry("text", time.time(), time.time() + 1, None, None, "others", f"第{sv.added}句 " + "字" * 60,
+                          "yue"), None)
+        p.refresh()
+        pump(qapp, 0.05)
+
+    def space_below_newest():
+        doc = p.body.document()
+        rect = doc.documentLayout().blockBoundingRect(doc.lastBlock())
+        return p.body.viewport().height() - (rect.bottom() - p.body.verticalScrollBar().value())
+
+    add(40)
+    bar = p.body.verticalScrollBar()
+    assert bar.maximum() > 0 and bar.value() == bar.maximum()
+    assert space_below_newest() >= line                        # newest line in full, one empty line below
+    e._lt_save, sv.active = "audio_text", True                 # words in progress appear under the text
+    sv.partials = {"others": ("仲講緊嘅說話 " * 12, time.time())}
+    p.refresh()
+    pump(qapp, 0.05)
+    assert p.provisional.isVisible() and bar.value() == bar.maximum() and space_below_newest() >= line
+    bar.setValue(0)                                            # the user scrolls up to read
+    add(5)
+    assert bar.value() == 0                                    # ... and keeps their place
+    bar.setValue(bar.maximum())                                # back at the bottom: follows again
+    add(5)
+    assert bar.value() == bar.maximum() and space_below_newest() >= line
+    e._lt_save, sv.active, sv.partials = "", False, {}

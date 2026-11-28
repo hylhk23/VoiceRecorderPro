@@ -392,7 +392,7 @@ class TranscriptionService:
     def audio_closed(self, path: str) -> None:
         """An audio file (or its untouched copy) was finished."""
         if self.opts.get("save") == "text_check" and self.retention is not None and os.path.exists(path):
-            self.retention.add(path, AUDIO, float(self.opts.get("keep_days") or 7))
+            self.retention.add(path, AUDIO, float(self.opts.get("keep_days") or 30))
 
     def take_messages(self) -> list[tuple[str, str]]:
         m, self.messages = self.messages, []

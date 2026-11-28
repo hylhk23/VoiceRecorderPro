@@ -1595,8 +1595,14 @@ class Engine(QObject):
     def kept_for_checking(self, path: str | None) -> bool:
         return bool(path) and bool(self.retention.find(path, AUDIO))
 
+    @staticmethod
+    def _recycle(path: str) -> None:
+        """Delete for the retention register and Mark Checked: to the Recycle Bin (1.1.1), never for good."""
+        if not winutil.send_to_recycle_bin(paths.longpath(path)):
+            raise OSError("it could not be moved to the Recycle Bin")
+
     def mark_checked(self, path: str) -> tuple[bool, str]:
-        """Delete the audio kept for checking now (the transcript stays)."""
+        """Move the audio kept for checking to the Recycle Bin now (the transcript stays)."""
         items = self.retention.find(path, AUDIO)
         if not items:
             return False, "This recording is not one kept for checking."
@@ -1609,13 +1615,13 @@ class Engine(QObject):
         for p in [path] + others:
             try:
                 if os.path.exists(paths.longpath(p)):
-                    os.remove(paths.longpath(p))
+                    self._recycle(p)
                 self.retention.remove(p)
             except OSError as exc:
                 errors.append(f"{os.path.basename(p)}: {exc}")
         if errors:
-            return False, "Not all files could be deleted: " + "; ".join(errors)
-        log.info("audio kept for checking deleted after checking: %s", path)
+            return False, "Not all files could be moved to the Recycle Bin: " + "; ".join(errors)
+        log.info("audio kept for checking moved to the Recycle Bin after checking: %s", path)
         return True, ""
 
     def _sweep(self) -> None:
@@ -1625,14 +1631,15 @@ class Engine(QObject):
             return (self.file is not None and os.path.normcase(self.file.path) == os.path.normcase(p)) or \
                 (self.recorder.status.get("path") or "") == p
         try:
-            done = self.retention.sweep(busy=busy)
+            done = self.retention.sweep(busy=busy, delete=self._recycle)
         except Exception:
             log.exception("retention sweep failed")
             return
         gone = [p for p, why in done if not why]
         if gone:
-            self._tell("sweep", "Files deleted", f"{len(gone)} file(s) kept for a set number of days were deleted, "
-                                                 "as set in Options > Transcript.", 3600)
+            self._tell("sweep", "Files moved to the Recycle Bin",
+                       f"{len(gone)} file(s) kept for a set number of days were moved to the Recycle Bin, "
+                       "as set in Options > Transcript.", 3600)
 
     def _finish_transcripts(self) -> None:
         """Transcripts left unfinished by a crash: write their subtitles and remove the journals."""

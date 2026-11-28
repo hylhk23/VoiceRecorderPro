@@ -3,6 +3,8 @@
 The register is a small JSON file in the settings folder. Only files the program
 itself put in the register are ever deleted; nothing else in the recordings folder
 is touched. The register is written to a temporary file and then moved into place.
+The program deletes by moving files to the Recycle Bin (1.1.1); the delete
+function is passed in, so this module stays free of Windows calls.
 """
 from __future__ import annotations
 
@@ -92,7 +94,7 @@ class Retention:
             try:
                 if os.path.exists(paths.longpath(p)):
                     delete(p)
-                    log.info("deleted %s (kept for %s, now due)", p, it["kind"])
+                    log.info("removed %s (kept for %s, now due)", p, it["kind"])
                 done.append((p, ""))
             except OSError as exc:
                 keep.append(it)

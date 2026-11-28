@@ -1046,13 +1046,13 @@ class MainWindow(QMainWindow):
             self.flash("This recording is not one kept for checking")
             return
         r = QMessageBox.question(self, "Mark Checked and Delete Audio",
-                                 f"You have checked the transcript of {os.path.basename(f.path)}. Delete its audio "
-                                 "now? It is deleted for good, not moved to the Recycle Bin. The transcript stays.")
+                                 f"You have checked the transcript of {os.path.basename(f.path)}. Move its audio to "
+                                 "the Recycle Bin now? The transcript stays.")
         if r != QMessageBox.Yes:
             return
         ok, why = self.engine.mark_checked(f.path)
         if ok:
-            self.flash("Audio deleted; the transcript stays")
+            self.flash("Audio moved to the Recycle Bin; the transcript stays")
         else:
             self.show_message("warning", "Mark Checked and Delete Audio", why)
         self.refresh_all()

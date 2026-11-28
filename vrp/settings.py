@@ -153,7 +153,7 @@ SCHEMA: dict[str, Spec] = {
     "lt.script": S("hk", choices=["hk", "tw", "cn"]),
     "lt.names": S([], list),            # [{"heard": ..., "correct": ...}]
     "lt.save": S("text_check", choices=["audio_text", "text_check", "text_only"]),
-    "lt.keep_days": S(7, int, 1, 90),   # audio kept for checking
+    "lt.keep_days": S(30, int, 1, 365),   # audio kept for checking (1.1.1: 30 days, up to 365)
     "lt.files_srt": S(True),
     "lt.encrypt": S(False),             # Windows encryption (EFS) of new recordings and transcripts
     "lt.mask": S(False),
