@@ -62,6 +62,8 @@ Speech recognition makes mistakes, especially with background noise and people t
 
 **Also changed:** the level meters show sound above the Vox threshold in amber instead of magenta, which is easier to tell from the blue for people with red–green colour vision deficiency; the clip mark is outlined.
 
+Full list of changes: [release notes](https://github.com/hylhk23/VoiceRecorderPro/releases/tag/v1.1.1).
+
 ## What's new in 1.0.4
 
 **Clearer recordings in a noisy office.** Open **Options > Format > Clean-up (microphone)**. Both options are off until you turn them on.
@@ -187,7 +189,7 @@ The pack holds the open-source speech engine sherpa-onnx, the SenseVoiceSmall sp
 After you buy a commercial licence, you receive a licence file ending in `.key`. Copy it into the `VoiceRecorderPro` folder (the folder with `run.bat`), then open **Help > Licence** and choose **Check Again**, or restart the app. **Help > Licence** and **Help > About** then show your name.
 
 ### Update to a new version
-Close Voice Recorder Pro (right-click the tray icon, **Exit**), download the new zip in the same way, and extract it over the old `VoiceRecorderPro` folder, choosing **Replace** for the files that already exist. Your recordings and settings are stored outside the program folder and are kept. If you have a licence file, it stays in the folder; if you install into a new folder instead, copy your `.key` file into it.
+Close Voice Recorder Pro (right-click the tray icon, **Exit**), download the new zip in the same way, and extract it over the old `VoiceRecorderPro` folder, choosing **Replace** for the files that already exist. Your recordings and settings are stored outside the program folder and are kept. If you have a licence file, it stays in the folder; if you install into a new folder instead, copy your `.key` file into it. The Live Transcript pack also stays in the folder: you need a new pack only when the release notes say so (the 1.1 pack works with every 1.1 version).
 
 ### Remove
 Close the app, run `create-shortcut.bat /remove` if you created shortcuts, then delete the `VoiceRecorderPro` folder. Settings are in `%APPDATA%\VoiceRecorderPro` and logs in `%LOCALAPPDATA%\VoiceRecorderPro`; delete those too if you want to remove everything. Keep a copy of your licence file if you may need it again.
@@ -204,7 +206,8 @@ Close the app, run `create-shortcut.bat /remove` if you created shortcuts, then 
 
 Optional, before you record:
 - for transcripts that separate your voice from the other participants, choose **Options > Format > Channels > Separate: microphone left, computer audio right**, and wear a headset;
-- in a noisy room, or with people sitting far from the microphone, turn on **Options > Format > Clean-up (microphone) > Noise suppression** and **Automatic level**.
+- in a noisy room, or with people sitting far from the microphone, turn on **Options > Format > Clean-up (microphone) > Noise suppression** and **Automatic level**;
+- to see the words as they are spoken and get a transcript at the end, add the [Live Transcript pack](#add-the-live-transcript-pack-optional) and choose **Transcript > Live Transcript On**. With Separate channels the transcript labels your words *Me* and the others' *Others*.
 
 Recordings are saved to **`Documents\VRP Recordings`** (change this in **Options > Recording**). Open the MP3 in your transcription software to produce the text for your minutes.
 
@@ -240,7 +243,7 @@ cd VoiceRecorderPro
 run.bat
 ```
 
-Without the `python` folder, `run.bat` needs Python 3.12 or 3.13 (64-bit) from python.org and downloads the libraries into a private `.venv` on first run. Tests, project layout and build notes: [`docs/DEVELOPER.md`](docs/DEVELOPER.md).
+Without the `python` folder, `run.bat` needs Python 3.12 or 3.13 (64-bit) from python.org and downloads the libraries into a private `.venv` on first run. For the live transcript, also install `requirements-transcribe.txt` and put the models in a `transcribe` folder (`packaging/make_lt_pack.py` builds the pack and lists the model files and their checksums). Tests, project layout and build notes: [`docs/DEVELOPER.md`](docs/DEVELOPER.md).
 
 ---
 

@@ -90,8 +90,9 @@ With signing configured, `build.bat` signs both programs, the installer and its 
 | Settings | Tabbed Options dialog, JSON settings with backup, invalid-file handling, per-tab defaults, export/import |
 | Command line | `vrp record/pause/resume/stop/play/status/devices/extract/split/join/convert/schedule`, headless recording, single instance over a local named pipe, exit codes, run-after-file command |
 | Errors | Low-disk warning/stop, fallback folder when writing fails, microphone privacy hint, no-signal and clipping warnings, rotating logs |
+| Live transcript (1.1) | English, Cantonese and Mandarin recognised on the PC by sherpa-onnx with the SenseVoiceSmall model and Silero VAD, in a separate process at below-normal priority; words while spoken; Me/Others by channel; three save modes (audio and text, text with audio kept for checking, text only); `.txt` written phrase by phrase, `.srt` timed to the audio, crash journal; bookmarks, off the record; names list, Chinese character sets, masking, Windows encryption, retention to the Recycle Bin; Both/Recorder/Transcript layouts and a caption bar. Needs the Live Transcript pack |
 
-**Not in version 1:** Opus and IMA-ADPCM output, a local HTTP API, GPIO/MIDI inputs, automatic clean-up of old recordings, translations beyond English, automatic updates, and speech-to-text.
+**Not in version 1:** Opus and IMA-ADPCM output, a local HTTP API, GPIO/MIDI inputs, automatic clean-up of old recordings (other than the live transcript's), translations beyond English, automatic updates, and transcribing recordings after the fact (use Secure Offline Transcriber).
 
 ## 4. Tests
 
@@ -100,9 +101,13 @@ With signing configured, `build.bat` signs both programs, the installer and its 
 .venv\Scripts\python -m pytest -q
 ```
 
-81 automated tests run without real audio hardware, using a synthetic microphone. They cover recording, stop and playback; Vox segments and click rejection; file naming; rollover with no lost samples (including a simulated midnight); recovering a file after the process is killed mid-recording; fast extraction from a one-hour WAV; byte-identical MP3 frame copies; cancelled edits leaving the original untouched; device unplug and reconnect; late and missed schedules; command-line control of a running copy; microphone + computer-audio mixing and changing sources while recording; plus settings, formats and offscreen GUI tests.
+281 automated tests run without real audio hardware, using a synthetic microphone. They cover recording, stop and playback; Vox segments and click rejection; file naming; rollover with no lost samples (including a simulated midnight); recovering a file after the process is killed mid-recording; fast extraction from a one-hour WAV; byte-identical MP3 frame copies; cancelled edits leaving the original untouched; device unplug and reconnect; late and missed schedules; command-line control of a running copy; microphone + computer-audio mixing and changing sources while recording; plus settings, formats and offscreen GUI tests.
 
 Not covered by automated tests (they need real devices on Windows 11): global hot-keys, USB foot pedals, serial lines, physically unplugging a microphone, real computer audio, and very long (8-hour+) recordings.
+
+**Live transcript tests (1.1).** Most use a stand-in speech engine (`tests/fake_speech.py`), so they need no model. Two end-to-end tests run the real engine; they are skipped unless you install `requirements-transcribe.txt` and set `VRP_LT_PACK` to an unpacked pack's `transcribe` folder and `VRP_LT_WAVS` to a folder with the model's sample recordings `en.wav` and `yue.wav`. The noise-suppression tests need RNNoise built for the test machine (`packaging/build_rnnoise.py`); without it they are skipped.
+
+**The Live Transcript pack** is built by `packaging/make_lt_pack.py` from the three wheels in `requirements-transcribe.txt`, the model files (`model.int8.onnx`, `tokens.txt`, `silero_vad.onnx`; sizes and SHA-256 are pinned in the script) and their licence texts.
 
 ## 5. Project layout
 
@@ -119,7 +124,10 @@ vrp/
     audio_backend.py PortAudio (sounddevice) + fake device      scheduler.py, journal.py, naming.py, dsp.py, model.py
     loopback.py     computer audio (WASAPI loopback, PyAudioWPatch), follows the default output device
   inputs/           hotkeys.py (RegisterHotKey), keymap.py, external.py (joystick/serial/HID)
-  ui/               main_window.py, widgets.py, options_dialog.py, dialogs.py, icons.py, taskbar.py
+  transcribe/       live transcript: pack.py, worker.py (speech engine process), live.py (phrases), text.py (clean-up),
+                    transcript.py (.txt/.srt/journal), retention.py, service.py (main-process side)
+  ui/               main_window.py, widgets.py, options_dialog.py, dialogs.py, icons.py, taskbar.py,
+                    transcript_panel.py
 packaging/          vrp.spec (PyInstaller), installer.iss (Inno Setup), version info, icon, launcher, licence collector
 tests/              pytest suite
 docs/HELP.html      user help
@@ -134,6 +142,8 @@ docs/HELP.html      user help
 | Settings | `%APPDATA%\VoiceRecorderPro\settings.json` (+ `.bak`) |
 | Logs | `%LOCALAPPDATA%\VoiceRecorderPro\Logs\vrp.log` (5 MB × 10 files, kept 14 days) |
 | Undo backups | hidden `.vrp-undo` folder next to an edited file (moved to the Recycle Bin after 24 h) |
+| Transcripts (1.1) | `<recording>.txt` and `.srt` next to each recording; `retention.json` in the settings folder lists files to move to the Recycle Bin after their days |
+| Live Transcript pack | `transcribe` folder in the program folder, plus `sherpa_onnx` and `opencc` in `python\Lib\site-packages` |
 
 With `portable.flag` (section 1), settings and logs are in the `data` folder instead.
 

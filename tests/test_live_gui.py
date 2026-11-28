@@ -356,7 +356,7 @@ def test_speaker_tags_differ_in_shape():
 
 
 def test_newest_line_stays_in_view(qapp, ctl):
-    """Regression (owner's test on Windows, 1.1.0): the newest line was hidden below the bottom edge, mostly
+    """Regression (found in a test on Windows, 1.1.0): the newest line was hidden below the bottom edge, mostly
     when the words-in-progress line appeared under the text and made the text area smaller. The text now
     follows the newest line with one empty line below it, unless the user has scrolled up."""
     import time
