@@ -130,7 +130,7 @@ vrp/
                     transcript_panel.py
 packaging/          vrp.spec (PyInstaller), installer.iss (Inno Setup), version info, icon, launcher, licence collector
 tests/              pytest suite
-tools/              screenshot_both_panels.py: README picture of both panels (temporary copy, demo sound and text)
+tools/              screenshot_recorder.py, screenshot_both_panels.py: README pictures (temporary copy, demo sound and text)
 docs/HELP.html      user help
 ```
 
